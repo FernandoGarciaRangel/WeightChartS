@@ -1,0 +1,251 @@
+/* Estilos Mobile-First para WeightChartS */
+
+/* Reset e configurações base */
+* {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Melhorias para touch */
+button, select, input {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    touch-action: manipulation;
+}
+
+/* Inputs otimizados para mobile */
+input[type="number"] {
+    font-size: 1.125rem;
+    -webkit-text-size-adjust: 100%;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+/* Foco e estados ativos para mobile */
+input:focus,
+select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+button:active {
+    transform: scale(0.98);
+}
+
+/* Gráfico responsivo */
+#graficoPeso {
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 300px;
+}
+
+/* Animações suaves para mobile */
+.transition-colors {
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+/* Melhorias nos botões para touch */
+button {
+    min-height: 44px; /* Mínimo recomendado para touch */
+    user-select: none;
+    cursor: pointer;
+}
+
+/* Cards com sombra sutil */
+.bg-white {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Header sticky otimizado */
+header {
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+/* Melhorias na seleção para mobile */
+select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    padding-right: 2.5rem;
+}
+
+/* Estatísticas com design mobile */
+#pesoAtual, #totalRegistros {
+    font-size: 1.5rem;
+    line-height: 2rem;
+}
+
+/* Mensagens de feedback otimizadas para mobile */
+.message {
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    right: 1rem;
+    padding: 1rem;
+    border-radius: 0.75rem;
+    color: white;
+    font-weight: 500;
+    z-index: 50;
+    text-align: center;
+    animation: slideDown 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Loading states para mobile */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+    position: relative;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 24px;
+    height: 24px;
+    margin: -12px 0 0 -12px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #3b82f6;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Melhorias para telas pequenas */
+@media (max-width: 480px) {
+    .p-4 {
+        padding: 1rem;
+    }
+    
+    .space-y-4 > * + * {
+        margin-top: 1rem;
+    }
+    
+    .text-2xl {
+        font-size: 1.5rem;
+    }
+    
+    .text-lg {
+        font-size: 1.125rem;
+    }
+}
+
+/* Melhorias para telas médias */
+@media (min-width: 768px) {
+    .p-4 {
+        padding: 1.5rem;
+    }
+    
+    .space-y-4 > * + * {
+        margin-top: 1.5rem;
+    }
+}
+
+/* Melhorias para telas grandes */
+@media (min-width: 1024px) {
+    .p-4 {
+        padding: 2rem;
+    }
+    
+    .space-y-4 > * + * {
+        margin-top: 2rem;
+    }
+}
+
+/* Melhorias na acessibilidade */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Suporte para modo escuro do sistema */
+@media (prefers-color-scheme: dark) {
+    .bg-white {
+        background-color: #1f2937;
+        color: #f9fafb;
+    }
+    
+    .text-gray-800 {
+        color: #f9fafb;
+    }
+    
+    .text-gray-600 {
+        color: #d1d5db;
+    }
+    
+    .border-gray-300 {
+        border-color: #4b5563;
+    }
+    
+    .bg-gray-100 {
+        background-color: #111827;
+    }
+}
+
+/* Melhorias para PWA */
+@media (display-mode: standalone) {
+    header {
+        padding-top: env(safe-area-inset-top);
+    }
+    
+    body {
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+}
+
+/* Melhorias para orientação landscape em mobile */
+@media (orientation: landscape) and (max-height: 500px) {
+    header {
+        padding: 0.5rem 1rem;
+    }
+    
+    .p-4 {
+        padding: 0.5rem;
+    }
+    
+    .space-y-4 > * + * {
+        margin-top: 0.5rem;
+    }
+    
+    #graficoPeso {
+        max-height: 200px;
+    }
+}

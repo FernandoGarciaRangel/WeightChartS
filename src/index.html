@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#3b82f6">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="WeightChartS">
+    <title>Acompanhamento de Peso - WeightChartS</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Estilos customizados -->
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Header Mobile -->
+    <header class="bg-white shadow-sm sticky top-0 z-40">
+        <div class="px-4 py-3">
+            <h1 class="text-2xl font-bold text-gray-800 text-center">WeightChartS</h1>
+            <p class="text-sm text-gray-600 text-center">Acompanhamento de Peso</p>
+        </div>
+    </header>
+
+    <div class="p-4 space-y-4">
+        <!-- Seleção de Mês e Semana -->
+        <div class="bg-white rounded-lg shadow-sm p-4">
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label for="mes" class="block text-sm font-medium text-gray-700 mb-2">Mês</label>
+                    <select id="mes" class="w-full p-3 border border-gray-300 rounded-lg text-base">
+                        <option value="janeiro">Janeiro</option>
+                        <option value="fevereiro">Fevereiro</option>
+                        <option value="marco">Março</option>
+                        <option value="abril">Abril</option>
+                        <option value="maio">Maio</option>
+                        <option value="junho">Junho</option>
+                        <option value="julho">Julho</option>
+                        <option value="agosto">Agosto</option>
+                        <option value="setembro">Setembro</option>
+                        <option value="outubro">Outubro</option>
+                        <option value="novembro">Novembro</option>
+                        <option value="dezembro">Dezembro</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="semana" class="block text-sm font-medium text-gray-700 mb-2">Semana</label>
+                    <select id="semana" class="w-full p-3 border border-gray-300 rounded-lg text-base">
+                        <option value="1">Semana 1</option>
+                        <option value="2">Semana 2</option>
+                        <option value="3">Semana 3</option>
+                        <option value="4">Semana 4</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Formulário de Registro -->
+        <div class="bg-white rounded-lg shadow-sm p-4">
+            <h2 class="text-lg font-semibold mb-4 text-gray-800">Registrar Peso</h2>
+            <div class="space-y-4">
+                <div>
+                    <label for="peso" class="block text-sm font-medium text-gray-700 mb-2">Peso (kg)</label>
+                    <input type="number" id="peso" step="0.1" min="0" max="500" 
+                           class="w-full p-4 border border-gray-300 rounded-lg text-lg text-center" 
+                           placeholder="70.5">
+                </div>
+                <button id="btnAdicionar" class="w-full bg-blue-500 text-white py-4 px-6 rounded-lg text-lg font-medium hover:bg-blue-600 active:bg-blue-700 transition-colors">
+                    ➕ Adicionar Registro
+                </button>
+            </div>
+        </div>
+
+        <!-- Gráfico -->
+        <div class="bg-white rounded-lg shadow-sm p-4">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
+                <h2 class="text-lg font-semibold text-gray-800">Evolução do Peso</h2>
+                <div class="flex flex-wrap gap-2">
+                    <button id="btnExportar" class="bg-gray-500 text-white px-3 py-2 rounded-lg text-sm hover:bg-gray-600 active:bg-gray-700 transition-colors">
+                        📤 Exportar
+                    </button>
+                    <button id="btnImportar" class="bg-gray-500 text-white px-3 py-2 rounded-lg text-sm hover:bg-gray-600 active:bg-gray-700 transition-colors">
+                        📥 Importar
+                    </button>
+                    <button id="btnLimpar" class="bg-red-500 text-white px-3 py-2 rounded-lg text-sm hover:bg-red-600 active:bg-red-700 transition-colors">
+                        🗑️ Limpar
+                    </button>
+                </div>
+            </div>
+            <div class="relative" style="height: 300px;">
+                <canvas id="graficoPeso"></canvas>
+            </div>
+        </div>
+
+        <!-- Estatísticas Rápidas -->
+        <div class="bg-white rounded-lg shadow-sm p-4">
+            <h3 class="text-lg font-semibold mb-3 text-gray-800">📊 Estatísticas</h3>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="text-center p-3 bg-blue-50 rounded-lg">
+                    <div class="text-2xl font-bold text-blue-600" id="pesoAtual">--</div>
+                    <div class="text-sm text-gray-600">Peso Atual</div>
+                </div>
+                <div class="text-center p-3 bg-green-50 rounded-lg">
+                    <div class="text-2xl font-bold text-green-600" id="totalRegistros">0</div>
+                    <div class="text-sm text-gray-600">Registros</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer Mobile -->
+        <footer class="text-center py-4 text-gray-500 text-sm">
+            <p>WeightChartS - Para sua família</p>
+        </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>
