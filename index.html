@@ -27,7 +27,7 @@
         // Import Firebase usando CDN ES modules
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, where, orderBy, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-        import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, updateProfile, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
         
         // Configuração do Firebase
         const firebaseConfig = {
@@ -59,7 +59,11 @@
             orderBy, 
             serverTimestamp,
             onAuthStateChanged,
-            signInAnonymously
+            createUserWithEmailAndPassword,
+            signInWithEmailAndPassword,
+            signOut,
+            sendPasswordResetEmail,
+            updateProfile
         };
     </script>
     
@@ -75,8 +79,105 @@
                 <h1 class="text-2xl font-bold text-gray-800">WeightChartS</h1>
             </div>
             <p class="text-sm text-gray-600 text-center">Acompanhamento de Peso</p>
+            
+            <!-- Status de Autenticação -->
+            <div class="flex justify-center items-center mt-2 space-x-3">
+                <span id="authStatus" class="text-sm font-medium">⏳ Conectando...</span>
+                <span id="userInfo" class="text-xs text-gray-400">Inicializando...</span>
+                <button type="button" id="btnLogout" class="hidden bg-red-500 text-white px-3 py-1 rounded text-xs hover:bg-red-600 transition-colors">
+                    Sair
+                </button>
+            </div>
         </div>
     </header>
+
+    <!-- Tela de Login/Registro -->
+    <div id="authScreen" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <!-- Login Form -->
+            <div id="loginForm" class="space-y-4">
+                <h2 class="text-2xl font-bold text-center text-gray-800">Entrar</h2>
+                
+                <div>
+                    <label for="loginEmail" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                    <input type="email" id="loginEmail" class="w-full p-3 border border-gray-300 rounded-lg text-gray-800" placeholder="seu@email.com">
+                </div>
+                
+                <div>
+                    <label for="loginPassword" class="block text-sm font-medium text-gray-700 mb-2">Senha</label>
+                    <input type="password" id="loginPassword" class="w-full p-3 border border-gray-300 rounded-lg text-gray-800" placeholder="••••••••">
+                </div>
+                
+                <button type="button" id="btnLogin" class="w-full bg-blue-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-600 transition-colors">
+                    Entrar
+                </button>
+                
+                <div class="text-center">
+                    <button type="button" id="btnShowRegister" class="text-blue-500 hover:text-blue-600 text-sm">
+                        Não tem conta? Registre-se
+                    </button>
+                </div>
+                
+                <div class="text-center">
+                    <button type="button" id="btnForgotPassword" class="text-gray-500 hover:text-gray-600 text-sm">
+                        Esqueceu a senha?
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Register Form -->
+            <div id="registerForm" class="space-y-4 hidden">
+                <h2 class="text-2xl font-bold text-center text-gray-800">Criar Conta</h2>
+                
+                <div>
+                    <label for="registerName" class="block text-sm font-medium text-gray-700 mb-2">Nome</label>
+                    <input type="text" id="registerName" class="w-full p-3 border border-gray-300 rounded-lg text-gray-800" placeholder="Seu nome">
+                </div>
+                
+                <div>
+                    <label for="registerEmail" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                    <input type="email" id="registerEmail" class="w-full p-3 border border-gray-300 rounded-lg text-gray-800" placeholder="seu@email.com">
+                </div>
+                
+                <div>
+                    <label for="registerPassword" class="block text-sm font-medium text-gray-700 mb-2">Senha</label>
+                    <input type="password" id="registerPassword" class="w-full p-3 border border-gray-300 rounded-lg text-gray-800" placeholder="••••••••">
+                </div>
+                
+                <button type="button" id="btnRegister" class="w-full bg-green-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-600 transition-colors">
+                    Criar Conta
+                </button>
+                
+                <div class="text-center">
+                    <button type="button" id="btnShowLogin" class="text-blue-500 hover:text-blue-600 text-sm">
+                        Já tem conta? Entre aqui
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Forgot Password Form -->
+            <div id="forgotPasswordForm" class="space-y-4 hidden">
+                <h2 class="text-2xl font-bold text-center text-gray-800">Redefinir Senha</h2>
+                
+                <p class="text-gray-600 text-center">Digite seu email para receber um link de redefinição</p>
+                
+                <div>
+                    <label for="resetEmail" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                    <input type="email" id="resetEmail" class="w-full p-3 border border-gray-300 rounded-lg text-gray-800" placeholder="seu@email.com">
+                </div>
+                
+                <button type="button" id="btnResetPassword" class="w-full bg-orange-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-orange-600 transition-colors">
+                    Enviar Email
+                </button>
+                
+                <div class="text-center">
+                    <button type="button" id="btnBackToLogin" class="text-blue-500 hover:text-blue-600 text-sm">
+                        Voltar ao login
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div class="p-4 space-y-4">
         <!-- Seleção de Mês e Semana -->

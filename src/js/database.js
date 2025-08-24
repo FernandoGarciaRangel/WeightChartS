@@ -1,6 +1,7 @@
 // Módulo de banco de dados
 // Gerencia todas as operações de leitura e escrita
 // Integra Firebase com localStorage como fallback
+// Agora com suporte a autenticação e usuários específicos
 
 import { firebaseManager } from '../config/firebase.js';
 
@@ -8,7 +9,27 @@ class WeightDatabase {
     constructor() {
         this.registros = this.loadFromLocalStorage();
         this.useFirebase = false;
+        this.currentUserId = null;
         this.initializeFirebase();
+        this.setupAuthListener();
+    }
+
+    // Configurar listener de autenticação
+    setupAuthListener() {
+        window.addEventListener('userAuthChanged', (event) => {
+            const user = event.detail.user;
+            if (user) {
+                this.currentUserId = user.uid;
+                console.log('Usuário autenticado no banco:', this.currentUserId);
+                // Recarregar dados quando usuário mudar
+                this.loadData();
+            } else {
+                this.currentUserId = null;
+                console.log('Usuário desautenticado');
+                // Limpar dados quando usuário sair
+                this.registros = {};
+            }
+        });
     }
 
     // Inicializar Firebase
@@ -19,8 +40,11 @@ class WeightDatabase {
                 this.useFirebase = true;
                 console.log('Usando Firebase como banco de dados');
                 
-                // Sincronizar dados locais com Firebase
-                await this.syncLocalToFirebase();
+                // Aguardar autenticação antes de sincronizar
+                if (firebaseManager.isAuthenticated()) {
+                    this.currentUserId = firebaseManager.getCurrentUserId();
+                    await this.syncLocalToFirebase();
+                }
             } else {
                 console.log('Usando localStorage como banco de dados');
             }
@@ -32,7 +56,7 @@ class WeightDatabase {
 
     // Sincronizar dados locais com Firebase
     async syncLocalToFirebase() {
-        if (!this.useFirebase || Object.keys(this.registros).length === 0) return;
+        if (!this.useFirebase || !this.currentUserId || Object.keys(this.registros).length === 0) return;
 
         try {
             console.log('Sincronizando dados locais com Firebase...');
@@ -65,7 +89,9 @@ class WeightDatabase {
     // Carregar dados do localStorage (fallback)
     loadFromLocalStorage() {
         try {
-            return JSON.parse(localStorage.getItem('registrosPeso')) || {};
+            const userId = this.currentUserId || 'anonymous';
+            const key = `registrosPeso_${userId}`;
+            return JSON.parse(localStorage.getItem(key)) || {};
         } catch (error) {
             console.error('Erro ao carregar dados:', error);
             return {};
@@ -75,7 +101,9 @@ class WeightDatabase {
     // Salvar dados no localStorage (fallback)
     saveToLocalStorage() {
         try {
-            localStorage.setItem('registrosPeso', JSON.stringify(this.registros));
+            const userId = this.currentUserId || 'anonymous';
+            const key = `registrosPeso_${userId}`;
+            localStorage.setItem(key, JSON.stringify(this.registros));
             return true;
         } catch (error) {
             console.error('Erro ao salvar dados:', error);
@@ -83,10 +111,54 @@ class WeightDatabase {
         }
     }
 
+    // Carregar dados (Firebase ou localStorage)
+    async loadData() {
+        if (this.useFirebase && this.currentUserId) {
+            try {
+                const firebaseRecords = await firebaseManager.getWeightRecords();
+                this.registros = this.convertFirebaseToLocal(firebaseRecords);
+                console.log('Dados carregados do Firebase');
+            } catch (error) {
+                console.error('Erro ao carregar do Firebase, usando localStorage:', error);
+                this.registros = this.loadFromLocalStorage();
+            }
+        } else {
+            this.registros = this.loadFromLocalStorage();
+        }
+    }
+
+    // Converter dados do Firebase para formato local
+    convertFirebaseToLocal(firebaseRecords) {
+        const localData = {};
+        
+        firebaseRecords.forEach(record => {
+            const { mes, semana, peso, data, timestamp } = record;
+            
+            if (!localData[mes]) {
+                localData[mes] = {};
+            }
+            if (!localData[mes][semana]) {
+                localData[mes][semana] = [];
+            }
+            
+            localData[mes][semana].push({
+                peso,
+                data,
+                timestamp
+            });
+        });
+        
+        return localData;
+    }
+
     // Adicionar novo registro de peso
     async addWeightRecord(mes, semana, peso) {
         if (!peso || peso <= 0) {
             throw new Error('Peso inválido');
+        }
+
+        if (!this.currentUserId && this.useFirebase) {
+            throw new Error('Usuário não autenticado');
         }
 
         const registro = {
@@ -98,7 +170,7 @@ class WeightDatabase {
         try {
             if (this.useFirebase) {
                 // Salvar no Firebase
-                const recordId = await firebaseManager.addWeightRecord({
+                await firebaseManager.addWeightRecord({
                     mes: mes,
                     semana: semana,
                     peso: peso,
@@ -106,51 +178,26 @@ class WeightDatabase {
                     timestamp: registro.timestamp
                 });
                 
-                // Adicionar ID do Firebase ao registro
-                registro.id = recordId;
-                
                 // Atualizar dados locais
-                if (!this.registros[mes]) {
-                    this.registros[mes] = {};
-                }
-                if (!this.registros[mes][semana]) {
-                    this.registros[mes][semana] = [];
-                }
-                this.registros[mes][semana].push(registro);
-                
-                console.log('Registro salvo no Firebase:', recordId);
+                await this.loadData();
             } else {
-                // Fallback para localStorage
+                // Salvar no localStorage
                 if (!this.registros[mes]) {
                     this.registros[mes] = {};
                 }
                 if (!this.registros[mes][semana]) {
                     this.registros[mes][semana] = [];
                 }
-
-                this.registros[mes][semana].push(registro);
                 
-                if (!this.saveToLocalStorage()) {
-                    throw new Error('Erro ao salvar registro');
-                }
+                this.registros[mes][semana].push(registro);
+                this.saveToLocalStorage();
             }
-
+            
             return registro;
+            
         } catch (error) {
-            console.error('Erro ao salvar registro:', error);
-            
-            // Fallback para localStorage em caso de erro
-            if (!this.registros[mes]) {
-                this.registros[mes] = {};
-            }
-            if (!this.registros[mes][semana]) {
-                this.registros[mes][semana] = [];
-            }
-
-            this.registros[mes][semana].push(registro);
-            this.saveToLocalStorage();
-            
-            throw new Error('Erro ao salvar no Firebase, usando localStorage como fallback');
+            console.error('Erro ao adicionar registro:', error);
+            throw error;
         }
     }
 
