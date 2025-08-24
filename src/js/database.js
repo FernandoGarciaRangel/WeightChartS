@@ -19,9 +19,6 @@ class WeightDatabase {
                 this.useFirebase = true;
                 console.log('Usando Firebase como banco de dados');
                 
-                // Conectar usuário anônimo
-                await firebaseManager.signInAnonymously();
-                
                 // Sincronizar dados locais com Firebase
                 await this.syncLocalToFirebase();
             } else {

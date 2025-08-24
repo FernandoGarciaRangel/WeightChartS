@@ -20,14 +20,11 @@ class FirebaseManager {
             this.db = window.firebase.db;
             this.auth = window.firebase.auth;
             
-            // Configurar listener de autenticação
-            window.firebaseSDK.onAuthStateChanged(this.auth, (user) => {
-                this.currentUser = user;
-                console.log('Usuário autenticado:', user ? user.uid : 'Nenhum');
-            });
-
+            // SEM autenticação por enquanto - usar modo direto
+            this.currentUser = { uid: 'direct-access' };
+            
             this.isInitialized = true;
-            console.log('Firebase inicializado com sucesso!');
+            console.log('Firebase inicializado com sucesso! (modo direto)');
             return true;
 
         } catch (error) {
@@ -178,4 +175,4 @@ class FirebaseManager {
 const firebaseManager = new FirebaseManager();
 
 // Exportar
-export { firebaseConfig, firebaseManager };
+export { firebaseManager };
