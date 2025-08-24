@@ -1,0 +1,17 @@
+# Arquivos de desenvolvimento
+node_modules/
+.git/
+.gitignore
+.gitattributes
+
+# Documentação
+*.md
+LICENSE
+
+# Logs
+*.log
+npm-debug.log*
+
+# Arquivos temporários
+.DS_Store
+Thumbs.db

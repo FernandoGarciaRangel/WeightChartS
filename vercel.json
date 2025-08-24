@@ -2,7 +2,11 @@
   "version": 2,
   "builds": [
     {
-      "src": "**/*",
+      "src": "index.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "src/**/*",
       "use": "@vercel/static"
     }
   ],
@@ -12,8 +16,12 @@
       "dest": "/index.html"
     },
     {
+      "src": "/src/(.*)",
+      "dest": "/src/$1"
+    },
+    {
       "src": "/(.*)",
-      "dest": "/$1"
+      "dest": "/index.html"
     }
   ],
   "headers": [
@@ -32,6 +40,15 @@
         {
           "key": "Content-Type",
           "value": "text/css"
+        }
+      ]
+    },
+    {
+      "source": "**/*.svg",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "image/svg+xml"
         }
       ]
     }
