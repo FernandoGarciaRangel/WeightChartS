@@ -284,7 +284,15 @@ class WeightApp {
         }
 
         try {
-            await firebaseManager.signUp(email, password, name);
+            const user = await firebaseManager.signUp(email, password, name);
+            
+            // Atualizar o usuário atual na aplicação
+            this.currentUser = user;
+            this.isAuthenticated = true;
+            
+            // Forçar atualização da UI
+            this.updateAuthUI();
+            
             this.showSuccessMessage('Conta criada com sucesso!');
         } catch (error) {
             this.showErrorMessage(error.message);

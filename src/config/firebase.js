@@ -68,10 +68,17 @@ class FirebaseManager {
                 await window.firebaseSDK.updateProfile(userCredential.user, {
                     displayName: displayName
                 });
+                
+                // Atualizar o usuário atual com o novo displayName
+                this.currentUser = {
+                    ...userCredential.user,
+                    displayName: displayName
+                };
+            } else {
+                this.currentUser = userCredential.user;
             }
             
-            this.currentUser = userCredential.user;
-            console.log('Usuário registrado:', this.currentUser.email);
+            console.log('Usuário registrado:', this.currentUser.email, 'Nome:', this.currentUser.displayName);
             return this.currentUser;
             
         } catch (error) {
@@ -195,7 +202,19 @@ class FirebaseManager {
 
     // Obter nome do usuário atual
     getCurrentUserDisplayName() {
-        return this.currentUser ? (this.currentUser.displayName || 'Usuário') : 'Usuário';
+        if (!this.currentUser) return 'Usuário';
+        
+        // Verificar se o displayName existe e não está vazio
+        if (this.currentUser.displayName && this.currentUser.displayName.trim() !== '') {
+            return this.currentUser.displayName;
+        }
+        
+        // Fallback para email se não tiver nome
+        if (this.currentUser.email) {
+            return this.currentUser.email.split('@')[0]; // Primeira parte do email
+        }
+        
+        return 'Usuário';
     }
 
     // Métodos para operações de dados
