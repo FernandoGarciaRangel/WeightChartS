@@ -121,7 +121,7 @@
                            class="w-full p-4 border border-gray-300 rounded-lg text-lg text-center text-gray-800" 
                            placeholder="70.5">
                 </div>
-                <button id="btnAdicionar" class="w-full bg-blue-500 text-white py-4 px-6 rounded-lg text-lg font-medium hover:bg-blue-600 active:bg-blue-700 transition-colors">
+                <button type="button" id="btnAdicionar" class="w-full bg-blue-500 text-white py-4 px-6 rounded-lg text-lg font-medium hover:bg-blue-600 active:bg-blue-700 transition-colors">
                     ➕ Adicionar Registro
                 </button>
             </div>
@@ -132,18 +132,18 @@
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
                 <h2 class="text-lg font-semibold text-gray-800">Evolução do Peso</h2>
                 <div class="flex flex-wrap gap-2">
-                    <button id="btnExportar" class="bg-gray-500 text-white px-3 py-2 rounded-lg text-sm hover:bg-gray-600 active:bg-gray-700 transition-colors">
+                    <button type="button" id="btnExportar" class="bg-gray-500 text-white px-3 py-2 rounded-lg text-sm hover:bg-gray-600 active:bg-gray-700 transition-colors">
                         📤 Exportar
                     </button>
-                    <button id="btnImportar" class="bg-gray-500 text-white px-3 py-2 rounded-lg text-sm hover:bg-gray-600 active:bg-gray-700 transition-colors">
+                    <button type="button" id="btnImportar" class="bg-gray-500 text-white px-3 py-2 rounded-lg text-sm hover:bg-gray-600 active:bg-gray-700 transition-colors">
                         📥 Importar
                     </button>
-                    <button id="btnLimpar" class="bg-red-500 text-white px-3 py-2 rounded-lg text-sm hover:bg-red-600 active:bg-red-700 transition-colors">
+                    <button type="button" id="btnLimpar" class="bg-red-500 text-white px-3 py-2 rounded-lg text-sm hover:bg-gray-600 active:bg-gray-700 transition-colors">
                         🗑️ Limpar
                     </button>
                 </div>
             </div>
-            <div class="relative" style="height: 300px;">
+            <div class="relative h-75">
                 <canvas id="graficoPeso"></canvas>
             </div>
         </div>
