@@ -9,18 +9,53 @@
     <meta name="apple-mobile-web-app-title" content="WeightChartS">
     <title>Acompanhamento de Peso - WeightChartS</title>
     
-    <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="src/icons/favicon.svg">
-    <link rel="icon" type="image/svg+xml" href="src/icons/WeightChartS.svg">
-    
     <!-- PWA Manifest -->
-    <link rel="manifest" href="src/manifest.json">
+    <link rel="manifest" href="manifest.json">
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Firebase -->
+    <script type="module">
+        // Import Firebase usando CDN ES modules
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, where, orderBy, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        
+        // Configuração do Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyDPQbgniQSwmCyXS1lXLrLR2poHUv-cSCc",
+            authDomain: "weightcharts-314d1.firebaseapp.com",
+            projectId: "weightcharts-314d1",
+            storageBucket: "weightcharts-314d1.firebasestorage.app",
+            messagingSenderId: "410013821174",
+            appId: "1:410013821174:web:4cba8cfc333b08abace4d7",
+            measurementId: "G-EWJ44HTZBE"
+        };
+        
+        // Inicializar Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        
+        // Disponibilizar globalmente para os módulos
+        window.firebase = { app, db, auth };
+        window.firebaseSDK = { 
+            collection, 
+            addDoc, 
+            getDocs, 
+            updateDoc, 
+            deleteDoc, 
+            doc, 
+            query, 
+            where, 
+            orderBy, 
+            serverTimestamp 
+        };
+    </script>
     
     <!-- Estilos customizados -->
     <link rel="stylesheet" href="css/styles.css">

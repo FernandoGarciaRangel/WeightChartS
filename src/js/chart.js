@@ -127,15 +127,19 @@ class WeightChart {
         });
     }
 
-    updateChart() {
+    async updateChart() {
         if (!this.chart) return;
 
-        const { dados, labels } = weightDB.getAllRecords();
-        
-        this.chart.data.labels = labels;
-        this.chart.data.datasets[0].data = dados;
-        
-        this.chart.update();
+        try {
+            const { dados, labels } = await weightDB.getAllRecords();
+            
+            this.chart.data.labels = labels;
+            this.chart.data.datasets[0].data = dados;
+            
+            this.chart.update();
+        } catch (error) {
+            console.error('Erro ao atualizar gráfico:', error);
+        }
     }
 
     // Atualizar gráfico com novos dados

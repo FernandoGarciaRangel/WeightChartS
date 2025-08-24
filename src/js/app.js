@@ -72,19 +72,19 @@ class WeightApp {
         this.updateStatistics();
     }
 
-    addWeightRecord() {
+    async addWeightRecord() {
         const mes = document.getElementById('mes').value;
         const semana = document.getElementById('semana').value;
         const peso = parseFloat(document.getElementById('peso').value);
 
         try {
-            const registro = weightDB.addWeightRecord(mes, semana, peso);
+            const registro = await weightDB.addWeightRecord(mes, semana, peso);
             
             // Limpar campo de peso
             document.getElementById('peso').value = '';
             
             // Atualizar gráfico
-            this.updateChart();
+            await this.updateChart();
             
             // Mostrar feedback
             this.showSuccessMessage('Registro adicionado com sucesso!');
@@ -94,30 +94,34 @@ class WeightApp {
         }
     }
 
-    updateChart() {
+    async updateChart() {
         if (this.chart) {
-            this.chart.refresh();
+            await this.chart.refresh();
         }
-        this.updateStatistics();
+        await this.updateStatistics();
     }
 
-    updateStatistics() {
-        const { dados } = weightDB.getAllRecords();
-        
-        // Atualizar peso atual (último registro)
-        const pesoAtualEl = document.getElementById('pesoAtual');
-        if (pesoAtualEl) {
-            if (dados.length > 0) {
-                pesoAtualEl.textContent = `${dados[dados.length - 1]} kg`;
-            } else {
-                pesoAtualEl.textContent = '--';
+    async updateStatistics() {
+        try {
+            const { dados } = await weightDB.getAllRecords();
+            
+            // Atualizar peso atual (último registro)
+            const pesoAtualEl = document.getElementById('pesoAtual');
+            if (pesoAtualEl) {
+                if (dados.length > 0) {
+                    pesoAtualEl.textContent = `${dados[dados.length - 1]} kg`;
+                } else {
+                    pesoAtualEl.textContent = '--';
+                }
             }
-        }
-        
-        // Atualizar total de registros
-        const totalRegistrosEl = document.getElementById('totalRegistros');
-        if (totalRegistrosEl) {
-            totalRegistrosEl.textContent = dados.length;
+            
+            // Atualizar total de registros
+            const totalRegistrosEl = document.getElementById('totalRegistros');
+            if (totalRegistrosEl) {
+                totalRegistrosEl.textContent = dados.length;
+            }
+        } catch (error) {
+            console.error('Erro ao atualizar estatísticas:', error);
         }
     }
 
@@ -174,21 +178,25 @@ class WeightApp {
         URL.revokeObjectURL(url);
     }
 
-    importData() {
+    async importData() {
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = '.json';
         
-        input.onchange = (e) => {
+        input.onchange = async (e) => {
             const file = e.target.files[0];
             if (file) {
                 const reader = new FileReader();
-                reader.onload = (e) => {
-                    if (weightDB.importData(e.target.result)) {
-                        this.showSuccessMessage('Dados importados com sucesso!');
-                        this.updateChart();
-                    } else {
-                        this.showErrorMessage('Erro ao importar dados');
+                reader.onload = async (e) => {
+                    try {
+                        if (await weightDB.importData(e.target.result)) {
+                            this.showSuccessMessage('Dados importados com sucesso!');
+                            await this.updateChart();
+                        } else {
+                            this.showErrorMessage('Erro ao importar dados');
+                        }
+                    } catch (error) {
+                        this.showErrorMessage('Erro ao importar dados: ' + error.message);
                     }
                 };
                 reader.readAsText(file);
@@ -198,11 +206,15 @@ class WeightApp {
         input.click();
     }
 
-    clearAllData() {
+    async clearAllData() {
         if (confirm('Tem certeza que deseja apagar todos os dados? Esta ação não pode ser desfeita.')) {
-            weightDB.clearAllData();
-            this.updateChart();
-            this.showSuccessMessage('Todos os dados foram apagados');
+            try {
+                await weightDB.clearAllData();
+                await this.updateChart();
+                this.showSuccessMessage('Todos os dados foram apagados');
+            } catch (error) {
+                this.showErrorMessage('Erro ao limpar dados: ' + error.message);
+            }
         }
     }
 }
