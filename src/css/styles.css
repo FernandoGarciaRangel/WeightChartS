@@ -26,6 +26,37 @@ input[type="number"] {
     -webkit-text-size-adjust: 100%;
 }
 
+/* Estilos específicos para todos os inputs */
+input {
+    color: #1f2937; /* Texto escuro para máximo contraste */
+    background-color: #ffffff; /* Fundo branco */
+    border-color: #d1d5db; /* Borda cinza */
+}
+
+/* Placeholder dos inputs */
+input::placeholder {
+    color: #9ca3af; /* Cinza médio para placeholder */
+    opacity: 1; /* Garantir que seja visível */
+}
+
+/* Inputs no foco */
+input:focus {
+    color: #1f2937; /* Manter texto escuro no foco */
+    background-color: #ffffff; /* Manter fundo branco */
+    border-color: #3b82f6; /* Borda azul no foco */
+}
+
+/* Inputs com valor */
+input:not(:placeholder-shown) {
+    color: #1f2937; /* Texto escuro quando tem valor */
+}
+
+/* Inputs desabilitados */
+input:disabled {
+    color: #9ca3af; /* Cinza médio quando desabilitado */
+    background-color: #f9fafb; /* Fundo cinza claro */
+}
+
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
     -webkit-appearance: none;
@@ -34,6 +65,21 @@ input[type="number"]::-webkit-inner-spin-button {
 
 input[type="number"] {
     -moz-appearance: textfield;
+}
+
+/* Estilos específicos para inputs de número */
+input[type="number"] {
+    color: #1f2937 !important; /* Forçar cor escura */
+    background-color: #ffffff !important; /* Forçar fundo branco */
+}
+
+/* Garantir que o texto seja sempre visível */
+input[type="number"]:focus {
+    color: #1f2937 !important;
+}
+
+input[type="number"]:not(:placeholder-shown) {
+    color: #1f2937 !important;
 }
 
 /* Foco e estados ativos para mobile */
@@ -85,6 +131,38 @@ select {
     background-repeat: no-repeat;
     background-size: 1.5em 1.5em;
     padding-right: 2.5rem;
+    color: #1f2937; /* Texto escuro para melhor contraste */
+    background-color: #ffffff; /* Fundo branco */
+}
+
+/* Estilos específicos para as opções dos seletores */
+select option {
+    color: #1f2937; /* Texto escuro */
+    background-color: #ffffff; /* Fundo branco */
+    padding: 8px 12px;
+}
+
+/* Hover nas opções para melhor feedback visual */
+select option:hover {
+    background-color: #f3f4f6;
+}
+
+/* Seleção ativa das opções */
+select option:checked {
+    background-color: #3b82f6;
+    color: #ffffff;
+}
+
+/* Melhorar contraste do texto dos seletores */
+select:focus {
+    color: #1f2937;
+    background-color: #ffffff;
+}
+
+/* Estilo para seletores desabilitados */
+select:disabled {
+    color: #9ca3af;
+    background-color: #f9fafb;
 }
 
 /* Estatísticas com design mobile */
@@ -165,6 +243,43 @@ select {
     }
 }
 
+/* Estilos específicos para seletores em mobile */
+@media (max-width: 480px) {
+    select {
+        font-size: 1rem;
+        min-height: 48px; /* Altura mínima para touch */
+    }
+    
+    select option {
+        font-size: 1rem;
+        padding: 12px 16px;
+    }
+}
+
+/* Melhorias gerais para todos os seletores */
+select {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+select:hover {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+}
+
+select:focus {
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    transform: translateY(0);
+}
+
+/* Estilo especial para o mês selecionado */
+select option[selected] {
+    background-color: #3b82f6;
+    color: #ffffff;
+    font-weight: 600;
+}
+
 /* Melhorias para telas médias */
 @media (min-width: 768px) {
     .p-4 {
@@ -217,6 +332,59 @@ select {
     
     .bg-gray-100 {
         background-color: #111827;
+    }
+    
+    /* Seletores no modo escuro */
+    select {
+        background-color: #374151;
+        color: #f9fafb;
+        border-color: #4b5563;
+    }
+    
+    select option {
+        background-color: #374151;
+        color: #f9fafb;
+    }
+    
+    select option:hover {
+        background-color: #4b5563;
+    }
+    
+    select option:checked {
+        background-color: #3b82f6;
+        color: #ffffff;
+    }
+    
+    select:focus {
+        background-color: #374151;
+        color: #f9fafb;
+        border-color: #3b82f6;
+    }
+    
+    /* Inputs no modo escuro */
+    input {
+        background-color: #374151;
+        color: #f9fafb;
+        border-color: #4b5563;
+    }
+    
+    input::placeholder {
+        color: #9ca3af;
+    }
+    
+    input:focus {
+        background-color: #374151;
+        color: #f9fafb;
+        border-color: #3b82f6;
+    }
+    
+    input:not(:placeholder-shown) {
+        color: #f9fafb;
+    }
+    
+    input:disabled {
+        color: #6b7280;
+        background-color: #1f2937;
     }
 }
 

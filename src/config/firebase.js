@@ -50,12 +50,10 @@ class FirebaseManager {
         }
 
         try {
-            const userId = this.currentUser ? this.currentUser.uid : 'anonymous';
             const recordData = {
                 ...data,
-                userId: userId,
-                createdAt: window.firebaseSDK.serverTimestamp(),
-                updatedAt: window.firebaseSDK.serverTimestamp()
+                timestamp: Date.now(),
+                createdAt: new Date().toISOString()
             };
 
             const docRef = await window.firebaseSDK.addDoc(
@@ -77,14 +75,11 @@ class FirebaseManager {
         }
 
         try {
-            const userId = this.currentUser ? this.currentUser.uid : 'anonymous';
-            const q = window.firebaseSDK.query(
-                window.firebaseSDK.collection(this.db, 'weightRecords'),
-                window.firebaseSDK.where('userId', '==', userId),
-                window.firebaseSDK.orderBy('createdAt', 'desc')
+            // Consulta simples sem índices complexos
+            const snapshot = await window.firebaseSDK.getDocs(
+                window.firebaseSDK.collection(this.db, 'weightRecords')
             );
-
-            const snapshot = await window.firebaseSDK.getDocs(q);
+            
             const records = [];
             snapshot.forEach(doc => {
                 records.push({
@@ -92,6 +87,9 @@ class FirebaseManager {
                     ...doc.data()
                 });
             });
+
+            // Ordenar localmente para evitar índices
+            records.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
             return records;
 

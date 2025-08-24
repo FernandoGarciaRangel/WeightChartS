@@ -1,6 +1,10 @@
 # WeightChartS
 
-Aplicação web para acompanhamento de peso familiar com gráficos interativos e persistência de dados.
+<div align="center">
+  <img src="src/icons/weight-chart-icon.svg" alt="WeightChartS Logo" width="80" height="80">
+  <h1>Aplicação web para acompanhamento de peso familiar</h1>
+  <p>Gráficos interativos e persistência de dados na nuvem</p>
+</div>
 
 ## 🚀 Funcionalidades
 
@@ -26,16 +30,18 @@ Aplicação web para acompanhamento de peso familiar com gráficos interativos e
 
 ```
 WeightChartS/
+├── index.html              # Página principal (raiz)
 ├── src/
-│   ├── index.html          # Página principal
 │   ├── css/
 │   │   └── styles.css      # Estilos customizados
 │   ├── js/
 │   │   ├── app.js          # Aplicação principal
 │   │   ├── database.js     # Gerenciamento de dados
 │   │   └── chart.js        # Configuração de gráficos
-│   └── config/
-│       └── firebase.js     # Configuração Firebase
+│   ├── config/
+│   │   └── firebase.js     # Configuração Firebase
+│   └── icons/
+│       └── weight-chart-icon.svg # Logo do projeto
 ├── vercel.json             # Configuração Vercel
 └── package.json            # Dependências e scripts
 ```

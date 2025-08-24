@@ -2,9 +2,9 @@
   "name": "weightcharts",
   "version": "1.0.0",
   "description": "Aplicação web mobile-first para acompanhamento de peso familiar",
-  "main": "src/index.html",
+  "main": "index.html",
   "scripts": {
-    "dev": "npx http-server src -p 3000 -c-1",
+    "dev": "npx http-server . -p 3000 -c-1",
     "build": "echo 'Build não necessário para aplicação estática'",
     "deploy": "vercel --prod"
   },

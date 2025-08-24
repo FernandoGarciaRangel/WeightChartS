@@ -9,8 +9,12 @@
     <meta name="apple-mobile-web-app-title" content="WeightChartS">
     <title>Acompanhamento de Peso - WeightChartS</title>
     
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="src/icons/weight-chart-icon.svg">
+    <link rel="apple-touch-icon" href="src/icons/weight-chart-icon.svg">
+    
     <!-- PWA Manifest -->
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="src/manifest.json">
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -60,13 +64,16 @@
     </script>
     
     <!-- Estilos customizados -->
-    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="src/css/styles.css">
 </head>
 <body class="bg-gray-100 min-h-screen">
     <!-- Header Mobile -->
     <header class="bg-white shadow-sm sticky top-0 z-40">
         <div class="px-4 py-3">
-            <h1 class="text-2xl font-bold text-gray-800 text-center">WeightChartS</h1>
+            <div class="flex justify-center items-center mb-2">
+                <img src="src/icons/weight-chart-icon.svg" alt="WeightChartS Logo" class="w-10 h-10 mr-3">
+                <h1 class="text-2xl font-bold text-gray-800">WeightChartS</h1>
+            </div>
             <p class="text-sm text-gray-600 text-center">Acompanhamento de Peso</p>
         </div>
     </header>
@@ -111,7 +118,7 @@
                 <div>
                     <label for="peso" class="block text-sm font-medium text-gray-700 mb-2">Peso (kg)</label>
                     <input type="number" id="peso" step="0.1" min="0" max="500" 
-                           class="w-full p-4 border border-gray-300 rounded-lg text-lg text-center" 
+                           class="w-full p-4 border border-gray-300 rounded-lg text-lg text-center text-gray-800" 
                            placeholder="70.5">
                 </div>
                 <button id="btnAdicionar" class="w-full bg-blue-500 text-white py-4 px-6 rounded-lg text-lg font-medium hover:bg-blue-600 active:bg-blue-700 transition-colors">
@@ -158,11 +165,14 @@
 
         <!-- Footer Mobile -->
         <footer class="text-center py-4 text-gray-500 text-sm">
-            <p>WeightChartS - Para sua família</p>
+            <div class="flex justify-center items-center mb-2">
+                <img src="src/icons/weight-chart-icon.svg" alt="WeightChartS Logo" class="w-6 h-6 mr-2 opacity-60">
+                <p>WeightChartS - Para sua família</p>
+            </div>
         </footer>
     </div>
 
     <!-- Scripts -->
-    <script type="module" src="js/app.js"></script>
+    <script type="module" src="src/js/app.js"></script>
 </body>
 </html>
