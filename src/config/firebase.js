@@ -336,7 +336,7 @@ class FirebaseManager {
             const docRef = window.firebaseSDK.doc(this.db, 'weightRecords', recordId);
             const doc = await window.firebaseSDK.getDoc(docRef);
             
-            if (doc.exists()) {
+            if (doc.exists) {
                 return { id: doc.id, ...doc.data() };
             }
             return null;
@@ -368,6 +368,40 @@ class FirebaseManager {
             console.error('Erro ao limpar dados:', error);
             throw error;
         }
+    }
+
+    /** Preferência de tema na coleção users/{uid} (merge) */
+    async saveUserThemePreference(theme) {
+        if (!this.isAvailable() || !this.currentUser) return;
+        const value = theme === 'light' ? 'light' : 'dark';
+        try {
+            const docRef = window.firebaseSDK.doc(this.db, 'users', this.currentUser.uid);
+            await window.firebaseSDK.setDoc(
+                docRef,
+                {
+                    theme: value,
+                    preferencesUpdatedAt: window.firebaseSDK.serverTimestamp(),
+                },
+                { merge: true },
+            );
+        } catch (e) {
+            console.warn('Não foi possível guardar tema na nuvem:', e);
+        }
+    }
+
+    async loadUserThemePreference() {
+        if (!this.isAvailable() || !this.currentUser) return null;
+        try {
+            const docRef = window.firebaseSDK.doc(this.db, 'users', this.currentUser.uid);
+            const snap = await window.firebaseSDK.getDoc(docRef);
+            if (snap.exists) {
+                const t = snap.data().theme;
+                if (t === 'light' || t === 'dark') return t;
+            }
+        } catch (e) {
+            console.warn('Não foi possível ler tema na nuvem:', e);
+        }
+        return null;
     }
 
     // Limpar listener quando não for mais necessário

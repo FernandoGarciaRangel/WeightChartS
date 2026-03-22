@@ -1,35 +1,47 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#3b82f6">
+    <meta name="theme-color" content="#f97316">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="WeightChartS">
+    <meta name="author" content="Fernando Garcia Rangel">
     <title>Acompanhamento de Peso - WeightChartS</title>
     
-    <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="src/icons/weight-chart-icon.svg">
     <link rel="apple-touch-icon" href="src/icons/weight-chart-icon.svg">
     
-    <!-- PWA Manifest -->
     <link rel="manifest" href="src/manifest.json">
     
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            DEFAULT: '#f97316',
+                            dim: '#c2410c',
+                            glow: 'rgba(249, 115, 22, 0.15)',
+                        },
+                    },
+                    boxShadow: {
+                        'glow': '0 0 40px -10px rgba(249, 115, 22, 0.35)',
+                    },
+                },
+            },
+        };
+    </script>
     
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
-    <!-- Firebase -->
     <script type="module">
-        // Import Firebase usando CDN ES modules
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, where, orderBy, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getFirestore, collection, addDoc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, doc, query, where, orderBy, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, updateProfile, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
         
-        // Configuração do Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyDPQbgniQSwmCyXS1lXLrLR2poHUv-cSCc",
             authDomain: "weightcharts-314d1.firebaseapp.com",
@@ -40,17 +52,17 @@
             measurementId: "G-EWJ44HTZBE"
         };
         
-        // Inicializar Firebase
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
         
-        // Disponibilizar globalmente para os módulos
         window.firebase = { app, db, auth };
         window.firebaseSDK = { 
             collection, 
             addDoc, 
-            getDocs, 
+            getDoc,
+            getDocs,
+            setDoc,
             updateDoc, 
             deleteDoc, 
             doc, 
@@ -67,111 +79,109 @@
         };
     </script>
     
-    <!-- Estilos customizados -->
     <link rel="stylesheet" href="src/css/styles.css">
 </head>
-<body class="bg-gray-100 min-h-screen">
-    <!-- Header Mobile -->
-    <header class="bg-white shadow-sm sticky top-0 z-40">
+<body class="min-h-screen bg-zinc-950 text-zinc-100 antialiased selection:bg-orange-500/30 selection:text-orange-100">
+    <div id="bgGradient" class="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(249,115,22,0.12),transparent)]"></div>
+
+    <header id="siteHeader" class="relative z-40 sticky top-0 border-b border-zinc-800/80 bg-zinc-950/90 shadow-glow backdrop-blur-md">
         <div class="px-4 py-3">
             <div class="flex justify-center items-center mb-2">
-                <img src="src/icons/weight-chart-icon.svg" alt="WeightChartS Logo" class="w-10 h-10 mr-3">
-                <h1 class="text-2xl font-bold text-gray-800">WeightChartS</h1>
+                <img src="src/icons/weight-chart-icon.svg" alt="" class="w-10 h-10 mr-3 drop-shadow-[0_0_12px_rgba(249,115,22,0.4)]" width="40" height="40">
+                <h1 class="text-2xl font-bold tracking-tight text-white">Weight<span class="text-orange-500">Chart</span>S</h1>
             </div>
-            <p class="text-sm text-gray-600 text-center">Acompanhamento de Peso</p>
+            <p class="text-sm text-zinc-400 text-center">Acompanhamento de peso</p>
             
-            <!-- Status de Autenticação -->
-            <div class="flex justify-center items-center mt-2 space-x-3">
-                <span id="authStatus" class="text-sm font-medium">⏳ Conectando...</span>
-                <span id="userInfo" class="text-xs text-gray-400">Inicializando...</span>
-                <button type="button" id="btnLogout" class="hidden bg-red-500 text-white px-3 py-1 rounded text-xs hover:bg-red-600 transition-colors">
+            <div class="flex flex-wrap justify-center items-center gap-x-3 gap-y-1 mt-2">
+                <span id="authStatus" class="text-sm font-medium text-zinc-400">⏳ Conectando...</span>
+                <span id="userInfo" class="text-xs text-zinc-500">Inicializando...</span>
+                <button type="button" id="btnTheme" class="hidden rounded-lg bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-200 border border-zinc-700 hover:bg-zinc-700 hover:border-orange-500/50 transition-colors" title="Alternar tema claro ou escuro" aria-pressed="false">
+                    Tema claro
+                </button>
+                <button type="button" id="btnLogout" class="hidden rounded-lg bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-200 border border-zinc-700 hover:bg-zinc-700 hover:border-orange-500/50 transition-colors">
                     Sair
                 </button>
             </div>
         </div>
     </header>
 
-    <!-- Tela de Login/Registro -->
-    <div id="authScreen" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 hidden">
-        <div class="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-            <!-- Login Form -->
+    <div id="authScreen" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-label="Iniciar sessão ou criar conta">
+        <div class="theme-auth-panel w-full max-w-md rounded-2xl border border-zinc-700/80 bg-zinc-900 p-6 shadow-2xl shadow-black/50 ring-1 ring-orange-500/10">
             <div id="loginForm" class="space-y-4">
-                <h2 class="text-2xl font-bold text-center text-gray-800">Entrar</h2>
+                <h2 class="text-2xl font-bold text-center text-white">Entrar</h2>
                 
                 <div>
-                    <label for="loginEmail" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                    <input type="email" id="loginEmail" class="w-full p-3 border border-gray-300 rounded-lg text-gray-800" placeholder="seu@email.com">
+                    <label for="loginEmail" class="block text-sm font-medium text-zinc-400 mb-2">Email</label>
+                    <input type="email" id="loginEmail" class="w-full rounded-xl border border-zinc-600 bg-zinc-900/80 p-3 text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20" placeholder="seu@email.com">
                 </div>
                 
                 <div>
-                    <label for="loginPassword" class="block text-sm font-medium text-gray-700 mb-2">Senha</label>
-                    <input type="password" id="loginPassword" class="w-full p-3 border border-gray-300 rounded-lg text-gray-800" placeholder="••••••••">
+                    <label for="loginPassword" class="block text-sm font-medium text-zinc-400 mb-2">Senha</label>
+                    <input type="password" id="loginPassword" class="w-full rounded-xl border border-zinc-600 bg-zinc-900/80 p-3 text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20" placeholder="••••••••">
                 </div>
                 
-                <button type="button" id="btnLogin" class="w-full bg-blue-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-600 transition-colors">
+                <button type="button" id="btnLogin" class="w-full rounded-xl bg-orange-500 py-3 px-4 font-semibold text-white shadow-lg shadow-orange-500/25 transition hover:bg-orange-400 active:scale-[0.99]">
                     Entrar
                 </button>
                 
                 <div class="text-center">
-                    <button type="button" id="btnShowRegister" class="text-blue-500 hover:text-blue-600 text-sm">
+                    <button type="button" id="btnShowRegister" class="text-sm text-orange-400 hover:text-orange-300 transition-colors">
                         Não tem conta? Registre-se
                     </button>
                 </div>
                 
                 <div class="text-center">
-                    <button type="button" id="btnForgotPassword" class="text-gray-500 hover:text-gray-600 text-sm">
+                    <button type="button" id="btnForgotPassword" class="text-sm text-zinc-500 hover:text-zinc-400 transition-colors">
                         Esqueceu a senha?
                     </button>
                 </div>
             </div>
             
-            <!-- Register Form -->
             <div id="registerForm" class="space-y-4 hidden">
-                <h2 class="text-2xl font-bold text-center text-gray-800">Criar Conta</h2>
+                <h2 class="text-2xl font-bold text-center text-white">Criar conta</h2>
                 
                 <div>
-                    <label for="registerName" class="block text-sm font-medium text-gray-700 mb-2">Nome</label>
-                    <input type="text" id="registerName" class="w-full p-3 border border-gray-300 rounded-lg text-gray-800" placeholder="Seu nome">
+                    <label for="registerName" class="block text-sm font-medium text-zinc-400 mb-2">Nome</label>
+                    <input type="text" id="registerName" class="w-full rounded-xl border border-zinc-600 bg-zinc-900/80 p-3 text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20" placeholder="Seu nome">
                 </div>
                 
                 <div>
-                    <label for="registerEmail" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                    <input type="email" id="registerEmail" class="w-full p-3 border border-gray-300 rounded-lg text-gray-800" placeholder="seu@email.com">
+                    <label for="registerEmail" class="block text-sm font-medium text-zinc-400 mb-2">Email</label>
+                    <input type="email" id="registerEmail" class="w-full rounded-xl border border-zinc-600 bg-zinc-900/80 p-3 text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20" placeholder="seu@email.com">
                 </div>
                 
                 <div>
-                    <label for="registerPassword" class="block text-sm font-medium text-gray-700 mb-2">Senha</label>
-                    <input type="password" id="registerPassword" class="w-full p-3 border border-gray-300 rounded-lg text-gray-800" placeholder="••••••••">
+                    <label for="registerPassword" class="block text-sm font-medium text-zinc-400 mb-2">Senha</label>
+                    <input type="password" id="registerPassword" class="w-full rounded-xl border border-zinc-600 bg-zinc-900/80 p-3 text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20" placeholder="••••••••">
                 </div>
                 
-                <button type="button" id="btnRegister" class="w-full bg-green-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-600 transition-colors">
-                    Criar Conta
+                <button type="button" id="btnRegister" class="w-full rounded-xl bg-orange-500 py-3 px-4 font-semibold text-white shadow-lg shadow-orange-500/25 transition hover:bg-orange-400 active:scale-[0.99]">
+                    Criar conta
                 </button>
                 
                 <div class="text-center">
-                    <button type="button" id="btnShowLogin" class="text-blue-500 hover:text-blue-600 text-sm">
+                    <button type="button" id="btnShowLogin" class="text-sm text-orange-400 hover:text-orange-300 transition-colors">
                         Já tem conta? Entre aqui
                     </button>
                 </div>
             </div>
             
-            <!-- Forgot Password Form -->
             <div id="forgotPasswordForm" class="space-y-4 hidden">
-                <h2 class="text-2xl font-bold text-center text-gray-800">Redefinir Senha</h2>
+                <h2 class="text-2xl font-bold text-center text-white">Redefinir senha</h2>
                 
-                <p class="text-gray-600 text-center">Digite seu email para receber um link de redefinição</p>
+                <p class="text-zinc-400 text-center text-sm">Digite seu email para receber um link de redefinição</p>
                 
                 <div>
-                    <label for="resetEmail" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                    <input type="email" id="resetEmail" class="w-full p-3 border border-gray-300 rounded-lg text-gray-800" placeholder="seu@email.com">
+                    <label for="resetEmail" class="block text-sm font-medium text-zinc-400 mb-2">Email</label>
+                    <input type="email" id="resetEmail" class="w-full rounded-xl border border-zinc-600 bg-zinc-900/80 p-3 text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20" placeholder="seu@email.com">
                 </div>
                 
-                <button type="button" id="btnResetPassword" class="w-full bg-orange-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-orange-600 transition-colors">
-                    Enviar Email
+                <button type="button" id="btnResetPassword" class="w-full rounded-xl bg-orange-600 py-3 px-4 font-semibold text-white shadow-lg shadow-orange-600/20 transition hover:bg-orange-500 active:scale-[0.99]">
+                    Enviar email
                 </button>
                 
                 <div class="text-center">
-                    <button type="button" id="btnBackToLogin" class="text-blue-500 hover:text-blue-600 text-sm">
+                    <button type="button" id="btnBackToLogin" class="text-sm text-orange-400 hover:text-orange-300 transition-colors">
                         Voltar ao login
                     </button>
                 </div>
@@ -179,101 +189,89 @@
         </div>
     </div>
 
-    <div class="p-4 space-y-4">
-        <!-- Seleção de Mês e Semana -->
-        <div class="bg-white rounded-lg shadow-sm p-4">
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label for="mes" class="block text-sm font-medium text-gray-700 mb-2">Mês</label>
-                    <select id="mes" class="w-full p-3 border border-gray-300 rounded-lg text-base">
-                        <option value="janeiro">Janeiro</option>
-                        <option value="fevereiro">Fevereiro</option>
-                        <option value="marco">Março</option>
-                        <option value="abril">Abril</option>
-                        <option value="maio">Maio</option>
-                        <option value="junho">Junho</option>
-                        <option value="julho">Julho</option>
-                        <option value="agosto">Agosto</option>
-                        <option value="setembro">Setembro</option>
-                        <option value="outubro">Outubro</option>
-                        <option value="novembro">Novembro</option>
-                        <option value="dezembro">Dezembro</option>
-                    </select>
-                </div>
-                <div>
-                    <label for="semana" class="block text-sm font-medium text-gray-700 mb-2">Semana</label>
-                    <select id="semana" class="w-full p-3 border border-gray-300 rounded-lg text-base">
-                        <option value="1">Semana 1</option>
-                        <option value="2">Semana 2</option>
-                        <option value="3">Semana 3</option>
-                        <option value="4">Semana 4</option>
-                    </select>
-                </div>
-            </div>
-        </div>
+    <main class="relative z-10 p-4 space-y-4 max-w-lg mx-auto w-full">
+        <div class="theme-card rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 backdrop-blur-sm shadow-xl shadow-black/20">
+            <h2 class="text-lg font-semibold mb-2 text-white flex items-center gap-2">
+                <span class="inline-block h-2 w-2 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.8)]"></span>
+                Registrar peso
+            </h2>
+            <p id="periodoResumo" class="text-sm text-zinc-400 mb-4 text-center leading-relaxed"></p>
 
-        <!-- Formulário de Registro -->
-        <div class="bg-white rounded-lg shadow-sm p-4">
-            <h2 class="text-lg font-semibold mb-4 text-gray-800">Registrar Peso</h2>
             <div class="space-y-4">
                 <div>
-                    <label for="peso" class="block text-sm font-medium text-gray-700 mb-2">Peso</label>
+                    <label for="peso" class="block text-sm font-medium text-zinc-400 mb-2">Peso (kg)</label>
                     <input type="number" id="peso" step="0.1" min="0" max="500" 
-                           class="w-full p-4 border border-gray-300 rounded-lg text-lg text-center text-gray-800" 
-                           placeholder="Kg">
+                           class="w-full rounded-xl border border-zinc-600 bg-zinc-900/80 p-4 text-center text-lg text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20" 
+                           placeholder="0.0">
                 </div>
-                <button type="button" id="btnAdicionar" class="w-full bg-blue-500 text-white py-4 px-6 rounded-lg text-lg font-medium hover:bg-blue-600 active:bg-blue-700 transition-colors">
-                    ➕ Adicionar Registro
+                <button type="button" id="btnAdicionar" class="w-full rounded-xl bg-orange-500 py-4 px-6 text-lg font-semibold text-white shadow-lg shadow-orange-500/30 transition hover:bg-orange-400 active:scale-[0.99]">
+                    Adicionar registro
                 </button>
             </div>
         </div>
 
-        <!-- Gráfico -->
-        <div class="bg-white rounded-lg shadow-sm p-4">
+        <div class="theme-card rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 backdrop-blur-sm shadow-xl shadow-black/20">
+            <h2 class="text-lg font-semibold mb-1 text-white">Corrigir registos</h2>
+            <p class="text-xs text-zinc-500 mb-3">Últimos registos — altera o valor se tiveres enganado ao registar.</p>
+            <p id="listaRegistrosVazia" class="text-sm text-zinc-500 py-2 hidden">Ainda não há registos.</p>
+            <ul id="listaRegistros" class="divide-y divide-zinc-800/80 rounded-lg border border-zinc-800/80 overflow-hidden" aria-label="Lista de registos de peso"></ul>
+        </div>
+
+        <div class="theme-card rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 backdrop-blur-sm shadow-xl shadow-black/20">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
-                <h2 class="text-lg font-semibold text-gray-800">Evolução do Peso</h2>
+                <h2 class="text-lg font-semibold text-white">Evolução do peso</h2>
                 <div class="flex flex-wrap gap-2">
-                    <button type="button" id="btnExportar" class="bg-gray-500 text-white px-3 py-2 rounded-lg text-sm hover:bg-gray-600 active:bg-gray-700 transition-colors">
-                        📤 Exportar
+                    <button type="button" id="btnExportar" class="rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 hover:border-orange-500/40 hover:bg-zinc-700 transition-colors">
+                        Exportar
                     </button>
-                    <button type="button" id="btnImportar" class="bg-gray-500 text-white px-3 py-2 rounded-lg text-sm hover:bg-gray-600 active:bg-gray-700 transition-colors">
-                        📥 Importar
+                    <button type="button" id="btnImportar" class="rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 hover:border-orange-500/40 hover:bg-zinc-700 transition-colors">
+                        Importar
                     </button>
-                    <button type="button" id="btnLimpar" class="bg-red-500 text-white px-3 py-2 rounded-lg text-sm hover:bg-gray-600 active:bg-gray-700 transition-colors">
-                        🗑️ Limpar
+                    <button type="button" id="btnLimpar" class="rounded-lg border border-red-900/50 bg-red-950/40 px-3 py-2 text-sm text-red-300 hover:bg-red-950/70 transition-colors">
+                        Limpar
                     </button>
                 </div>
             </div>
-            <div class="relative h-75">
+            <div class="relative w-full min-h-[340px] h-[400px] sm:min-h-[380px] sm:h-[440px]">
                 <canvas id="graficoPeso"></canvas>
             </div>
         </div>
 
-        <!-- Estatísticas Rápidas -->
-        <div class="bg-white rounded-lg shadow-sm p-4">
-            <h3 class="text-lg font-semibold mb-3 text-gray-800">📊 Estatísticas</h3>
+        <div class="theme-card rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 backdrop-blur-sm shadow-xl shadow-black/20">
+            <h3 class="text-lg font-semibold mb-3 text-white">Estatísticas</h3>
             <div class="grid grid-cols-2 gap-4">
-                <div class="text-center p-3 bg-blue-50 rounded-lg">
-                    <div class="text-2xl font-bold text-blue-600" id="pesoAtual">--</div>
-                    <div class="text-sm text-gray-600">Peso Atual</div>
+                <div class="text-center rounded-xl border border-orange-500/20 bg-orange-500/10 p-4">
+                    <div class="text-2xl font-bold text-orange-400" id="pesoAtual">--</div>
+                    <div class="text-sm text-zinc-400">Peso atual</div>
                 </div>
-                <div class="text-center p-3 bg-green-50 rounded-lg">
-                    <div class="text-2xl font-bold text-green-600" id="totalRegistros">0</div>
-                    <div class="text-sm text-gray-600">Registros</div>
+                <div class="text-center rounded-xl border border-zinc-700 bg-zinc-800/50 p-4">
+                    <div class="text-2xl font-bold text-zinc-100" id="totalRegistros">0</div>
+                    <div class="text-sm text-zinc-400">Registros</div>
                 </div>
             </div>
         </div>
 
-        <!-- Footer Mobile -->
-        <footer class="text-center py-4 text-gray-500 text-sm">
-            <div class="flex justify-center items-center mb-2">
-                <img src="src/icons/weight-chart-icon.svg" alt="WeightChartS Logo" class="w-6 h-6 mr-2 opacity-60">
-                <p>WeightChartS - Para sua família</p>
+        <footer class="text-center py-6 text-zinc-500 text-sm">
+            <div class="flex justify-center items-center mb-2 gap-2">
+                <img src="src/icons/weight-chart-icon.svg" alt="" class="w-6 h-6 opacity-80" width="24" height="24">
+                <p class="text-zinc-400">WeightChartS — Fernando Garcia Rangel</p>
             </div>
         </footer>
+    </main>
+
+    <div id="modalEditarPeso" class="fixed inset-0 z-[60] hidden flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="modalEditarPesoTitulo">
+        <div class="theme-auth-panel w-full max-w-sm rounded-2xl border border-zinc-700 bg-zinc-900 p-5 shadow-2xl ring-1 ring-orange-500/10">
+            <h3 id="modalEditarPesoTitulo" class="text-lg font-semibold text-white mb-1">Corrigir peso</h3>
+            <p id="editarPesoContexto" class="text-sm text-zinc-400 mb-4"></p>
+            <label for="editarPesoValor" class="block text-xs font-medium text-zinc-500 mb-1.5">Peso (kg)</label>
+            <input type="number" id="editarPesoValor" step="0.1" min="0" max="500" class="w-full rounded-xl border border-zinc-600 bg-zinc-950/80 p-3 text-center text-lg text-zinc-100 mb-4 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20">
+            <div class="flex gap-2">
+                <button type="button" id="btnCancelarEditarPeso" class="flex-1 rounded-xl border border-zinc-600 py-2.5 text-sm font-medium text-zinc-300 hover:bg-zinc-800">Cancelar</button>
+                <button type="button" id="btnGuardarEditarPeso" class="flex-1 rounded-xl bg-orange-500 py-2.5 text-sm font-semibold text-white hover:bg-orange-400">Guardar</button>
+            </div>
+        </div>
     </div>
 
-    <!-- Scripts -->
     <script type="module" src="src/js/app.js"></script>
 </body>
 </html>

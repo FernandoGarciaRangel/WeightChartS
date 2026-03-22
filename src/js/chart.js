@@ -1,7 +1,21 @@
-// Módulo de gráficos
-// Gerencia a criação e atualização dos gráficos
+// Gráfico — tema escuro + laranja
 
 import { weightDB } from './database.js';
+
+const ORANGE = 'rgb(249, 115, 22)';
+const ORANGE_FILL = 'rgba(249, 115, 22, 0.12)';
+
+function getThemeColors() {
+    const light = document.documentElement.dataset.theme === 'light';
+    return {
+        GRID: light ? 'rgba(0, 0, 0, 0.1)' : 'rgba(63, 63, 70, 0.6)',
+        TICK: light ? '#52525b' : '#a1a1aa',
+        pointBorder: light ? '#ffffff' : '#18181b',
+        tooltipBg: light ? 'rgba(255, 255, 255, 0.96)' : 'rgba(24, 24, 27, 0.95)',
+        titleColor: light ? '#18181b' : '#fafafa',
+        bodyColor: light ? '#3f3f46' : '#e4e4e7',
+    };
+}
 
 class WeightChart {
     constructor(canvasId) {
@@ -22,6 +36,9 @@ class WeightChart {
             this.chart.destroy();
         }
 
+        const isNarrow = window.innerWidth < 768;
+        const { GRID, TICK, pointBorder, tooltipBg, titleColor, bodyColor } = getThemeColors();
+
         this.chart = new Chart(ctx, {
             type: 'line',
             data: {
@@ -29,47 +46,51 @@ class WeightChart {
                 datasets: [{
                     label: 'Peso (kg)',
                     data: [],
-                    borderColor: 'rgb(75, 192, 192)',
-                    backgroundColor: 'rgba(75, 192, 192, 0.1)',
-                    tension: 0.1,
+                    borderColor: ORANGE,
+                    backgroundColor: ORANGE_FILL,
+                    tension: 0.35,
                     fill: true,
-                    pointBackgroundColor: 'rgb(75, 192, 192)',
-                    pointBorderColor: '#fff',
+                    pointBackgroundColor: ORANGE,
+                    pointBorderColor: pointBorder,
                     pointBorderWidth: 2,
-                    pointRadius: 4
+                    pointRadius: isNarrow ? 3 : 4,
+                    pointHoverRadius: 6,
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                color: TICK,
                 plugins: {
                     legend: {
                         display: true,
                         position: 'top',
                         labels: {
-                            padding: 20,
+                            padding: 16,
                             usePointStyle: true,
+                            color: TICK,
                             font: {
-                                size: window.innerWidth < 768 ? 12 : 14
-                            }
-                        }
+                                size: isNarrow ? 12 : 13,
+                                family: "'Segoe UI', system-ui, sans-serif",
+                            },
+                        },
                     },
                     tooltip: {
                         mode: 'index',
                         intersect: false,
-                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                        titleColor: 'white',
-                        bodyColor: 'white',
-                        borderColor: '#3b82f6',
+                        backgroundColor: tooltipBg,
+                        titleColor: titleColor,
+                        bodyColor: bodyColor,
+                        borderColor: 'rgba(249, 115, 22, 0.4)',
                         borderWidth: 1,
-                        cornerRadius: 8,
+                        cornerRadius: 10,
                         displayColors: false,
                         callbacks: {
                             label: function(context) {
                                 return `Peso: ${context.parsed.y} kg`;
                             }
                         }
-                    }
+                    },
                 },
                 scales: {
                     y: {
@@ -77,53 +98,78 @@ class WeightChart {
                         title: {
                             display: true,
                             text: 'Peso (kg)',
+                            color: TICK,
                             font: {
-                                size: window.innerWidth < 768 ? 12 : 14
-                            }
+                                size: isNarrow ? 11 : 12,
+                            },
                         },
                         grid: {
-                            color: 'rgba(0, 0, 0, 0.1)'
+                            color: GRID,
                         },
                         ticks: {
+                            color: TICK,
                             font: {
-                                size: window.innerWidth < 768 ? 10 : 12
-                            }
-                        }
+                                size: isNarrow ? 10 : 11,
+                            },
+                        },
                     },
                     x: {
                         title: {
                             display: true,
                             text: 'Período',
+                            color: TICK,
                             font: {
-                                size: window.innerWidth < 768 ? 12 : 14
-                            }
+                                size: isNarrow ? 11 : 12,
+                            },
                         },
                         grid: {
-                            color: 'rgba(0, 0, 0, 0.1)'
+                            color: GRID,
                         },
                         ticks: {
                             maxRotation: 45,
                             minRotation: 0,
+                            color: TICK,
                             font: {
-                                size: window.innerWidth < 768 ? 10 : 12
-                            }
-                        }
-                    }
+                                size: isNarrow ? 9 : 10,
+                            },
+                        },
+                    },
                 },
                 interaction: {
                     mode: 'nearest',
                     axis: 'x',
-                    intersect: false
+                    intersect: false,
                 },
                 layout: {
                     padding: {
-                        top: 20,
-                        right: 20,
-                        bottom: 20,
-                        left: 20
-                    }
-                }
-            }
+                        top: 12,
+                        right: 8,
+                        bottom: 8,
+                        left: 8,
+                    },
+                },
+            },
+        });
+    }
+
+    syncTheme() {
+        if (!this.chart) return;
+        const { GRID, TICK, pointBorder, tooltipBg, titleColor, bodyColor } = getThemeColors();
+        const ds = this.chart.data.datasets[0];
+        ds.pointBorderColor = pointBorder;
+        this.chart.options.color = TICK;
+        const L = this.chart.options.plugins.legend.labels;
+        L.color = TICK;
+        const tip = this.chart.options.plugins.tooltip;
+        tip.backgroundColor = tooltipBg;
+        tip.titleColor = titleColor;
+        tip.bodyColor = bodyColor;
+        ['x', 'y'].forEach((axis) => {
+            const sc = this.chart.options.scales[axis];
+            if (!sc) return;
+            if (sc.title) sc.title.color = TICK;
+            if (sc.ticks) sc.ticks.color = TICK;
+            if (sc.grid) sc.grid.color = GRID;
         });
     }
 
@@ -136,18 +182,32 @@ class WeightChart {
             this.chart.data.labels = labels;
             this.chart.data.datasets[0].data = dados;
             
+            this.syncTheme();
             this.chart.update();
         } catch (error) {
             console.error('Erro ao atualizar gráfico:', error);
         }
     }
 
-    // Atualizar gráfico com novos dados
     refresh() {
         this.updateChart();
     }
 
-    // Destruir gráfico
+    /** Só cores (após mudar data-theme) */
+    refreshTheme() {
+        if (!this.chart) return;
+        this.syncTheme();
+        this.chart.update();
+    }
+
+    /** Esvazia o gráfico (ex.: ao terminar sessão) */
+    clear() {
+        if (!this.chart) return;
+        this.chart.data.labels = [];
+        this.chart.data.datasets[0].data = [];
+        this.chart.update();
+    }
+
     destroy() {
         if (this.chart) {
             this.chart.destroy();
@@ -155,7 +215,6 @@ class WeightChart {
         }
     }
 
-    // Exportar gráfico como imagem
     exportAsImage() {
         if (this.chart) {
             return this.chart.toBase64Image();
@@ -164,5 +223,4 @@ class WeightChart {
     }
 }
 
-// Exportar classe
 export { WeightChart };

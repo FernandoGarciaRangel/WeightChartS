@@ -4,7 +4,9 @@
   "description": "Aplicação web mobile-first para acompanhamento de peso familiar",
   "main": "index.html",
   "scripts": {
+    "start": "npx http-server . -p 3000 -c-1",
     "dev": "npx http-server . -p 3000 -c-1",
+    "lint": "eslint \"src/js/**/*.js\" \"src/config/**/*.js\"",
     "build": "echo 'Build não necessário para aplicação estática'",
     "deploy": "vercel --prod"
   },
@@ -15,9 +17,10 @@
     "acompanhamento",
     "graficos"
   ],
-  "author": "Sua Família",
+  "author": "Fernando Garcia Rangel",
   "license": "MIT",
   "devDependencies": {
+    "eslint": "^8.57.0",
     "http-server": "^14.1.1"
   },
   "dependencies": {}

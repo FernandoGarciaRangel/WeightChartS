@@ -1,0 +1,32 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log
+.npm
+
+# Ambiente
+.env
+.env.local
+.env.*.local
+
+# Logs e cobertura
+logs/
+*.log
+coverage/
+.nyc_output/
+
+# Ferramentas / caches
+.next/
+.nuxt/
+.serverless/
+.fusebox/
+.dynamodb/
+.pnp.*
+
+# Firebase (credenciais nativas — não usadas na web, mas seguro ignorar)
+google-services.json
+GoogleService-Info.plist

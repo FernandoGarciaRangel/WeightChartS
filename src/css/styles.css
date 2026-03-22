@@ -1,18 +1,16 @@
-/* Estilos Mobile-First para WeightChartS */
+/* WeightChartS — tema escuro + laranja */
 
-/* Reset e configurações base */
 * {
     box-sizing: border-box;
     -webkit-tap-highlight-color: transparent;
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
 
-/* Melhorias para touch */
 button, select, input {
     -webkit-appearance: none;
     -moz-appearance: none;
@@ -20,41 +18,31 @@ button, select, input {
     touch-action: manipulation;
 }
 
-/* Inputs otimizados para mobile */
 input[type="number"] {
     font-size: 1.125rem;
     -webkit-text-size-adjust: 100%;
 }
 
-/* Estilos específicos para todos os inputs */
 input {
-    color: #1f2937; /* Texto escuro para máximo contraste */
-    background-color: #ffffff; /* Fundo branco */
-    border-color: #d1d5db; /* Borda cinza */
+    color: #fafafa;
+    background-color: rgba(24, 24, 27, 0.8);
+    border-color: #52525b;
 }
 
-/* Placeholder dos inputs */
 input::placeholder {
-    color: #9ca3af; /* Cinza médio para placeholder */
-    opacity: 1; /* Garantir que seja visível */
+    color: #71717a;
+    opacity: 1;
 }
 
-/* Inputs no foco */
 input:focus {
-    color: #1f2937; /* Manter texto escuro no foco */
-    background-color: #ffffff; /* Manter fundo branco */
-    border-color: #3b82f6; /* Borda azul no foco */
+    outline: none;
+    border-color: #f97316;
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.2);
 }
 
-/* Inputs com valor */
-input:not(:placeholder-shown) {
-    color: #1f2937; /* Texto escuro quando tem valor */
-}
-
-/* Inputs desabilitados */
 input:disabled {
-    color: #9ca3af; /* Cinza médio quando desabilitado */
-    background-color: #f9fafb; /* Fundo cinza claro */
+    color: #71717a;
+    background-color: #18181b;
 }
 
 input[type="number"]::-webkit-outer-spin-button,
@@ -67,124 +55,99 @@ input[type="number"] {
     -moz-appearance: textfield;
 }
 
-/* Estilos específicos para inputs de número */
-input[type="number"] {
-    color: #1f2937 !important; /* Forçar cor escura */
-    background-color: #ffffff !important; /* Forçar fundo branco */
-}
-
-/* Garantir que o texto seja sempre visível */
-input[type="number"]:focus {
-    color: #1f2937 !important;
-}
-
-input[type="number"]:not(:placeholder-shown) {
-    color: #1f2937 !important;
-}
-
-/* Foco e estados ativos para mobile */
 input:focus,
 select:focus {
     outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 button:active {
     transform: scale(0.98);
 }
 
-/* Gráfico responsivo */
 #graficoPeso {
     width: 100% !important;
     height: 100% !important;
-    max-height: 300px;
+    max-height: 460px;
 }
 
-/* Animações suaves para mobile */
 .transition-colors {
-    transition: background-color 0.2s ease, transform 0.1s ease;
+    transition: background-color 0.2s ease, transform 0.1s ease, border-color 0.2s ease;
 }
 
-/* Melhorias nos botões para touch */
 button {
-    min-height: 44px; /* Mínimo recomendado para touch */
+    min-height: 44px;
     user-select: none;
     cursor: pointer;
 }
 
-/* Cards com sombra sutil */
-.bg-white {
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-/* Header sticky otimizado */
 header {
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
 }
 
-/* Melhorias na seleção para mobile */
 select {
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23a1a1aa' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
     background-position: right 0.5rem center;
     background-repeat: no-repeat;
     background-size: 1.5em 1.5em;
     padding-right: 2.5rem;
-    color: #1f2937; /* Texto escuro para melhor contraste */
-    background-color: #ffffff; /* Fundo branco */
+    color: #fafafa;
+    background-color: rgba(24, 24, 27, 0.8);
+    border-color: #52525b;
 }
 
-/* Estilos específicos para as opções dos seletores */
 select option {
-    color: #1f2937; /* Texto escuro */
-    background-color: #ffffff; /* Fundo branco */
+    color: #fafafa;
+    background-color: #18181b;
     padding: 8px 12px;
 }
 
-/* Hover nas opções para melhor feedback visual */
-select option:hover {
-    background-color: #f3f4f6;
-}
-
-/* Seleção ativa das opções */
+select option:hover,
 select option:checked {
-    background-color: #3b82f6;
-    color: #ffffff;
+    background-color: #27272a;
 }
 
-/* Melhorar contraste do texto dos seletores */
 select:focus {
-    color: #1f2937;
-    background-color: #ffffff;
+    border-color: #f97316;
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.2);
 }
 
-/* Estilo para seletores desabilitados */
 select:disabled {
-    color: #9ca3af;
-    background-color: #f9fafb;
+    color: #71717a;
+    background-color: #18181b;
 }
 
-/* Estatísticas com design mobile */
 #pesoAtual, #totalRegistros {
     font-size: 1.5rem;
     line-height: 2rem;
 }
 
-/* Mensagens de feedback otimizadas para mobile */
 .message {
     position: fixed;
     top: 1rem;
     left: 1rem;
     right: 1rem;
-    padding: 1rem;
+    padding: 1rem 1.25rem;
     border-radius: 0.75rem;
     color: white;
     font-weight: 500;
-    z-index: 50;
+    z-index: 60;
     text-align: center;
     animation: slideDown 0.3s ease;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.message.msg-success {
+    background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+}
+
+.message.msg-error {
+    background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+}
+
+.message.msg-info {
+    background: linear-gradient(135deg, #3f3f46 0%, #27272a 100%);
 }
 
 @keyframes slideDown {
@@ -198,7 +161,6 @@ select:disabled {
     }
 }
 
-/* Loading states para mobile */
 .loading {
     opacity: 0.6;
     pointer-events: none;
@@ -213,8 +175,8 @@ select:disabled {
     width: 24px;
     height: 24px;
     margin: -12px 0 0 -12px;
-    border: 2px solid #f3f3f3;
-    border-top: 2px solid #3b82f6;
+    border: 2px solid #3f3f46;
+    border-top: 2px solid #f97316;
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
@@ -224,85 +186,25 @@ select:disabled {
     100% { transform: rotate(360deg); }
 }
 
-/* Melhorias para telas pequenas */
 @media (max-width: 480px) {
     .p-4 {
         padding: 1rem;
     }
-    
     .space-y-4 > * + * {
         margin-top: 1rem;
     }
-    
-    .text-2xl {
-        font-size: 1.5rem;
-    }
-    
-    .text-lg {
-        font-size: 1.125rem;
-    }
 }
 
-/* Estilos específicos para seletores em mobile */
-@media (max-width: 480px) {
-    select {
-        font-size: 1rem;
-        min-height: 48px; /* Altura mínima para touch */
-    }
-    
-    select option {
-        font-size: 1rem;
-        padding: 12px 16px;
-    }
-}
-
-/* Melhorias gerais para todos os seletores */
 select {
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
     font-weight: 500;
 }
 
 select:hover {
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-    transform: translateY(-1px);
+    border-color: #71717a;
 }
 
-select:focus {
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
-    transform: translateY(0);
-}
-
-/* Estilo especial para o mês selecionado */
-select option[selected] {
-    background-color: #3b82f6;
-    color: #ffffff;
-    font-weight: 600;
-}
-
-/* Melhorias para telas médias */
-@media (min-width: 768px) {
-    .p-4 {
-        padding: 1.5rem;
-    }
-    
-    .space-y-4 > * + * {
-        margin-top: 1.5rem;
-    }
-}
-
-/* Melhorias para telas grandes */
-@media (min-width: 1024px) {
-    .p-4 {
-        padding: 2rem;
-    }
-    
-    .space-y-4 > * + * {
-        margin-top: 2rem;
-    }
-}
-
-/* Melhorias na acessibilidade */
 @media (prefers-reduced-motion: reduce) {
     * {
         animation-duration: 0.01ms !important;
@@ -311,109 +213,208 @@ select option[selected] {
     }
 }
 
-/* Suporte para modo escuro do sistema */
-@media (prefers-color-scheme: dark) {
-    .bg-white {
-        background-color: #1f2937;
-        color: #f9fafb;
-    }
-    
-    .text-gray-800 {
-        color: #f9fafb;
-    }
-    
-    .text-gray-600 {
-        color: #d1d5db;
-    }
-    
-    .border-gray-300 {
-        border-color: #4b5563;
-    }
-    
-    .bg-gray-100 {
-        background-color: #111827;
-    }
-    
-    /* Seletores no modo escuro */
-    select {
-        background-color: #374151;
-        color: #f9fafb;
-        border-color: #4b5563;
-    }
-    
-    select option {
-        background-color: #374151;
-        color: #f9fafb;
-    }
-    
-    select option:hover {
-        background-color: #4b5563;
-    }
-    
-    select option:checked {
-        background-color: #3b82f6;
-        color: #ffffff;
-    }
-    
-    select:focus {
-        background-color: #374151;
-        color: #f9fafb;
-        border-color: #3b82f6;
-    }
-    
-    /* Inputs no modo escuro */
-    input {
-        background-color: #374151;
-        color: #f9fafb;
-        border-color: #4b5563;
-    }
-    
-    input::placeholder {
-        color: #9ca3af;
-    }
-    
-    input:focus {
-        background-color: #374151;
-        color: #f9fafb;
-        border-color: #3b82f6;
-    }
-    
-    input:not(:placeholder-shown) {
-        color: #f9fafb;
-    }
-    
-    input:disabled {
-        color: #6b7280;
-        background-color: #1f2937;
-    }
-}
-
-/* Melhorias para PWA */
 @media (display-mode: standalone) {
     header {
         padding-top: env(safe-area-inset-top);
     }
-    
     body {
         padding-bottom: env(safe-area-inset-bottom);
     }
 }
 
-/* Melhorias para orientação landscape em mobile */
 @media (orientation: landscape) and (max-height: 500px) {
     header {
         padding: 0.5rem 1rem;
     }
-    
     .p-4 {
         padding: 0.5rem;
     }
-    
     .space-y-4 > * + * {
         margin-top: 0.5rem;
     }
-    
     #graficoPeso {
-        max-height: 200px;
+        max-height: 240px;
     }
+}
+
+/* —— Tema claro (preferência guardada em Firestore + localStorage) —— */
+html[data-theme="light"] body {
+    background-color: #fafafa !important;
+    color: #18181b !important;
+}
+
+html[data-theme="light"] #bgGradient {
+    background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(249, 115, 22, 0.08), transparent) !important;
+}
+
+html[data-theme="light"] #siteHeader {
+    border-color: rgba(228, 228, 231, 0.9) !important;
+    background-color: rgba(250, 250, 250, 0.92) !important;
+    box-shadow: 0 0 40px -10px rgba(249, 115, 22, 0.2) !important;
+}
+
+html[data-theme="light"] #siteHeader h1.text-white,
+html[data-theme="light"] #siteHeader .text-white {
+    color: #18181b !important;
+}
+
+html[data-theme="light"] #siteHeader .text-zinc-400 {
+    color: #52525b !important;
+}
+
+html[data-theme="light"] #authStatus[data-auth="in"] {
+    color: #c2410c !important;
+}
+
+html[data-theme="light"] #authStatus[data-auth="out"] {
+    color: #dc2626 !important;
+}
+
+html[data-theme="light"] #userInfo {
+    color: #71717a !important;
+}
+
+html[data-theme="light"] #btnTheme,
+html[data-theme="light"] #btnLogout {
+    background-color: #e4e4e7 !important;
+    color: #18181b !important;
+    border-color: #d4d4d8 !important;
+}
+
+html[data-theme="light"] #btnTheme:hover,
+html[data-theme="light"] #btnLogout:hover {
+    background-color: #d4d4d8 !important;
+    border-color: rgba(249, 115, 22, 0.45) !important;
+}
+
+html[data-theme="light"] .theme-card {
+    border-color: #e4e4e7 !important;
+    background-color: rgba(255, 255, 255, 0.75) !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08) !important;
+}
+
+html[data-theme="light"] .theme-card h2.text-white,
+html[data-theme="light"] .theme-card h3.text-white {
+    color: #18181b !important;
+}
+
+html[data-theme="light"] .theme-card .text-zinc-400,
+html[data-theme="light"] .theme-card .text-zinc-500 {
+    color: #52525b !important;
+}
+
+html[data-theme="light"] .theme-card label.text-zinc-400 {
+    color: #52525b !important;
+}
+
+html[data-theme="light"] .theme-card .border-zinc-800 {
+    border-color: #e4e4e7 !important;
+}
+
+html[data-theme="light"] #listaRegistros {
+    border-color: #e4e4e7 !important;
+}
+
+html[data-theme="light"] #listaRegistros > li + li {
+    border-top-color: #e4e4e7 !important;
+}
+
+html[data-theme="light"] .theme-card li.bg-zinc-950\/40 {
+    background-color: rgba(244, 244, 245, 0.9) !important;
+}
+
+html[data-theme="light"] .theme-card .text-zinc-300 {
+    color: #3f3f46 !important;
+}
+
+html[data-theme="light"] .theme-card button.border-zinc-600.bg-zinc-800 {
+    background-color: #e4e4e7 !important;
+    border-color: #d4d4d8 !important;
+    color: #18181b !important;
+}
+
+html[data-theme="light"] .theme-card #btnExportar,
+html[data-theme="light"] .theme-card #btnImportar {
+    background-color: #e4e4e7 !important;
+    border-color: #d4d4d8 !important;
+    color: #18181b !important;
+}
+
+html[data-theme="light"] .theme-card #btnLimpar {
+    background-color: rgba(254, 226, 226, 0.6) !important;
+    border-color: rgba(248, 113, 113, 0.35) !important;
+    color: #b91c1c !important;
+}
+
+html[data-theme="light"] footer .text-zinc-500,
+html[data-theme="light"] footer .text-zinc-400 {
+    color: #71717a !important;
+}
+
+html[data-theme="light"] input {
+    color: #18181b !important;
+    background-color: rgba(255, 255, 255, 0.95) !important;
+    border-color: #d4d4d8 !important;
+}
+
+html[data-theme="light"] input::placeholder {
+    color: #a1a1aa !important;
+}
+
+html[data-theme="light"] input:focus {
+    border-color: #f97316 !important;
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.2) !important;
+}
+
+html[data-theme="light"] select {
+    color: #18181b !important;
+    background-color: rgba(255, 255, 255, 0.95) !important;
+    border-color: #d4d4d8 !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2352525b' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+}
+
+html[data-theme="light"] select option {
+    color: #18181b !important;
+    background-color: #fafafa !important;
+}
+
+html[data-theme="light"] #pesoAtual,
+html[data-theme="light"] #totalRegistros {
+    color: #18181b !important;
+}
+
+html[data-theme="light"] #authScreen {
+    background-color: rgba(250, 250, 250, 0.85) !important;
+}
+
+html[data-theme="light"] .theme-auth-panel {
+    border-color: #e4e4e7 !important;
+    background-color: #ffffff !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.12) !important;
+}
+
+html[data-theme="light"] .theme-auth-panel h2.text-white,
+html[data-theme="light"] #modalEditarPeso .theme-auth-panel h3.text-white {
+    color: #18181b !important;
+}
+
+html[data-theme="light"] .theme-auth-panel .text-zinc-400,
+html[data-theme="light"] #modalEditarPeso .text-zinc-400 {
+    color: #52525b !important;
+}
+
+html[data-theme="light"] #modalEditarPeso {
+    background-color: rgba(24, 24, 27, 0.35) !important;
+}
+
+html[data-theme="light"] #modalEditarPeso .border-zinc-600 {
+    border-color: #d4d4d8 !important;
+}
+
+html[data-theme="light"] #modalEditarPeso #btnCancelarEditarPeso {
+    color: #3f3f46 !important;
+}
+
+html[data-theme="light"] #modalEditarPeso #btnCancelarEditarPeso:hover {
+    background-color: #f4f4f5 !important;
 }
