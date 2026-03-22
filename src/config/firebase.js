@@ -27,6 +27,12 @@ class FirebaseManager {
 
                 this.setupAuthStateListener();
 
+                // Em mobile, a sessão persistida (IndexedDB) restaura de forma assíncrona;
+                // sem isto, getCurrentUser() pode ser null logo após init e a UI fica presa em "Conectando...".
+                if (typeof this.auth.authStateReady === 'function') {
+                    await this.auth.authStateReady();
+                }
+
                 this.isInitialized = true;
                 console.log('Firebase inicializado com sucesso!');
                 return true;

@@ -98,7 +98,7 @@ class WeightApp {
         this.setupEventListeners();
         this.initializeChart();
         this.setupAuthListener();
-        this.checkAuthState();
+        void this.bootstrapAuthUI();
     }
 
     /** Mês e semana a partir da data de hoje (chave + valor da semana 1–4) */
@@ -122,13 +122,31 @@ class WeightApp {
         el.textContent = `Usa a data de hoje — ${this.formatPeriodLabel(new Date())}.`;
     }
 
-    // Verificar estado inicial de autenticação (sessão já disponível de forma síncrona)
-    async checkAuthState() {
-        await firebaseManager.initialize();
-        if (firebaseManager.isAuthenticated()) {
-            this.isAuthenticated = true;
-            this.currentUser = firebaseManager.getCurrentUser();
+    /**
+     * Sincroniza UI com o Auth após init (e authStateReady no Firebase).
+     * Corrige: evento userAuthChanged disparado antes do listener; e sessão null até restaurar no mobile.
+     */
+    async bootstrapAuthUI() {
+        const ok = await firebaseManager.initialize();
+        if (!ok) {
+            this.isAuthenticated = false;
+            this.currentUser = null;
             this.updateAuthUI();
+            if (this.shouldSkipLanding()) {
+                this.hideLandingScreen();
+                this.showAuthScreen();
+            } else {
+                this.showLandingScreen();
+            }
+            return;
+        }
+
+        const user = firebaseManager.getCurrentUser();
+        this.isAuthenticated = !!user;
+        this.currentUser = user;
+        this.updateAuthUI();
+
+        if (user) {
             await this.loadThemeForUser();
             this.loadInitialData();
             this.hideLandingScreen();
@@ -137,8 +155,12 @@ class WeightApp {
             } catch {
                 /* ignore */
             }
+        } else if (this.shouldSkipLanding()) {
+            this.hideLandingScreen();
+            this.showAuthScreen();
+        } else {
+            this.showLandingScreen();
         }
-        // Sem sessão síncrona: landing vs login é decidido em userAuthChanged (restauro assíncrono)
     }
 
     shouldSkipLanding() {
