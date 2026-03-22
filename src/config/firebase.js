@@ -47,6 +47,16 @@ class FirebaseManager {
         return this._initPromise;
     }
 
+    /** Garante que Auth está pronto antes de signIn/signUp/etc. (evita "Auth não inicializado" se o utilizador for rápido). */
+    async ensureInitialized() {
+        const ok = await this.initialize();
+        if (!ok || !this.auth) {
+            throw new Error(
+                'Firebase não está disponível. Recarrega a página ou verifica a ligação à internet.',
+            );
+        }
+    }
+
     // Configurar listener de estado de autenticação
     setupAuthStateListener() {
         this.authStateListener = window.firebaseSDK.onAuthStateChanged(this.auth, (user) => {
@@ -66,10 +76,8 @@ class FirebaseManager {
     // Registrar novo usuário
     async signUp(email, password, displayName = '') {
         try {
-            if (!this.auth) {
-                throw new Error('Auth não inicializado');
-            }
-            
+            await this.ensureInitialized();
+
             const userCredential = await window.firebaseSDK.createUserWithEmailAndPassword(
                 this.auth, 
                 email, 
@@ -103,10 +111,8 @@ class FirebaseManager {
     // Fazer login
     async signIn(email, password) {
         try {
-            if (!this.auth) {
-                throw new Error('Auth não inicializado');
-            }
-            
+            await this.ensureInitialized();
+
             const userCredential = await window.firebaseSDK.signInWithEmailAndPassword(
                 this.auth, 
                 email, 
@@ -126,11 +132,12 @@ class FirebaseManager {
     // Fazer logout
     async signOut() {
         try {
-            if (this.auth) {
+            const ok = await this.initialize();
+            if (ok && this.auth) {
                 await this.auth.signOut();
-                this.currentUser = null;
-                console.log('Logout realizado');
             }
+            this.currentUser = null;
+            console.log('Logout realizado');
         } catch (error) {
             console.error('Erro no logout:', error);
             throw error;
@@ -140,10 +147,8 @@ class FirebaseManager {
     // Redefinir senha
     async resetPassword(email) {
         try {
-            if (!this.auth) {
-                throw new Error('Auth não inicializado');
-            }
-            
+            await this.ensureInitialized();
+
             await window.firebaseSDK.sendPasswordResetEmail(this.auth, email);
             console.log('Email de redefinição enviado');
             
