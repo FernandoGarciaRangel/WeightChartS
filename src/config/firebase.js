@@ -51,6 +51,16 @@ class FirebaseManager {
     async ensureInitialized() {
         const ok = await this.initialize();
         if (!ok || !this.auth) {
+            if (typeof window !== 'undefined' && window.__firebaseInitError === 'missing_config') {
+                throw new Error(
+                    'Configuração Firebase em falta. Copia firebase-config.example.js para firebase-config.js ou verifica o index.html.',
+                );
+            }
+            if (typeof window !== 'undefined' && window.__firebaseInitError === 'init_failed') {
+                throw new Error(
+                    'Não foi possível iniciar o Firebase. Recarrega a página ou verifica bloqueios de rede / extensões.',
+                );
+            }
             throw new Error(
                 'Firebase não está disponível. Recarrega a página ou verifica a ligação à internet.',
             );

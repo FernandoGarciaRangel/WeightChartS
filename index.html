@@ -38,44 +38,63 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <script src="src/config/firebase-config.js"></script>
+    <!-- Fallback: firebase-config.js não vai no deploy se estiver só no .gitignore — evita 404 sem config -->
+    <script>
+        (function () {
+            var c = window.__firebaseConfig;
+            if (c && typeof c.apiKey === 'string' && c.apiKey) return;
+            window.__firebaseConfig = {
+                apiKey: 'AIzaSyDPQbgniQSwmCyXS1lXLrLR2poHUv-cSCc',
+                authDomain: 'weightcharts-314d1.firebaseapp.com',
+                projectId: 'weightcharts-314d1',
+                storageBucket: 'weightcharts-314d1.firebasestorage.app',
+                messagingSenderId: '410013821174',
+                appId: '1:410013821174:web:4cba8cfc333b08abace4d7',
+                measurementId: 'G-EWJ44HTZBE',
+            };
+        })();
+    </script>
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getFirestore, collection, addDoc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, doc, query, where, orderBy, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, updateProfile, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-        
+
         const firebaseConfig = window.__firebaseConfig;
         if (!firebaseConfig || typeof firebaseConfig.apiKey !== 'string' || !firebaseConfig.apiKey) {
-            console.error(
-                '[WeightChartS] Falta configuração Firebase. Copie src/config/firebase-config.example.js para src/config/firebase-config.js e preencha com os dados do Console.',
-            );
-            throw new Error('Configuração Firebase em falta (ver consola e README).');
-        }
+            console.error('[WeightChartS] Falta configuração Firebase.');
+            window.__firebaseInitError = 'missing_config';
+        } else {
+            try {
+                const app = initializeApp(firebaseConfig);
+                const db = getFirestore(app);
+                const auth = getAuth(app);
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-        
-        window.firebase = { app, db, auth };
-        window.firebaseSDK = { 
-            collection, 
-            addDoc, 
-            getDoc,
-            getDocs,
-            setDoc,
-            updateDoc, 
-            deleteDoc, 
-            doc, 
-            query, 
-            where, 
-            orderBy, 
-            serverTimestamp,
-            onAuthStateChanged,
-            createUserWithEmailAndPassword,
-            signInWithEmailAndPassword,
-            signOut,
-            sendPasswordResetEmail,
-            updateProfile
-        };
+                window.firebase = { app, db, auth };
+                window.firebaseSDK = {
+                    collection,
+                    addDoc,
+                    getDoc,
+                    getDocs,
+                    setDoc,
+                    updateDoc,
+                    deleteDoc,
+                    doc,
+                    query,
+                    where,
+                    orderBy,
+                    serverTimestamp,
+                    onAuthStateChanged,
+                    createUserWithEmailAndPassword,
+                    signInWithEmailAndPassword,
+                    signOut,
+                    sendPasswordResetEmail,
+                    updateProfile,
+                };
+            } catch (err) {
+                console.error('[WeightChartS] Erro ao inicializar Firebase:', err);
+                window.__firebaseInitError = 'init_failed';
+            }
+        }
     </script>
     
     <link rel="stylesheet" href="src/css/styles.css">

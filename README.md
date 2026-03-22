@@ -4,9 +4,9 @@
 
 Aplicação web mobile-first para acompanhamento de peso familiar: gráficos (Chart.js), interface com Tailwind (CDN) e dados em **localStorage** ou **Firebase** (autenticação + Firestore), conforme `src/js/database.js` e `index.html`.
 
-### Configuração Firebase (obrigatória)
+### Configuração Firebase
 
-A chave e o resto da configuração **não** ficam no `index.html` para não serem versionadas. Copia `src/config/firebase-config.example.js` para `src/config/firebase-config.js` e preenche com os valores do **Firebase Console** (Definições do projeto → a tua app web). Em produção, a chave continua visível no browser (normal em apps Firebase Web); reforça a segurança com **Firestore Rules**, **Auth** e, na Google Cloud, restrições de **HTTP referrer** na API key.
+Opcionalmente podes usar `src/config/firebase-config.js` (copiado do `firebase-config.example.js`) para não versionar a config no repositório. O `index.html` inclui um **fallback** com a configuração pública do projeto para o site funcionar em deploy mesmo quando esse ficheiro não existe (o ficheiro local, se existir, tem prioridade). A chave web do Firebase é pública por desenho; a segurança vem das **Firestore Rules**, **Auth** e restrições de domínio/API na Google Cloud.
 
 ## Como correr
 
