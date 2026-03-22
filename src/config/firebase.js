@@ -6,32 +6,39 @@ class FirebaseManager {
         this.auth = null;
         this.currentUser = null;
         this.authStateListener = null;
+        /** @type {Promise<boolean>|null} */
+        this._initPromise = null;
     }
 
     // Inicializar Firebase
     async initialize() {
-        try {
-            // Verificar se Firebase está disponível
-            if (!window.firebase || !window.firebaseSDK) {
-                console.error('Firebase não foi carregado. Verifique se o CDN está funcionando.');
+        if (this.isInitialized) return true;
+        if (this._initPromise) return this._initPromise;
+
+        this._initPromise = (async () => {
+            try {
+                if (!window.firebase || !window.firebaseSDK) {
+                    console.error('Firebase não foi carregado. Verifique se o CDN está funcionando.');
+                    return false;
+                }
+
+                this.db = window.firebase.db;
+                this.auth = window.firebase.auth;
+
+                this.setupAuthStateListener();
+
+                this.isInitialized = true;
+                console.log('Firebase inicializado com sucesso!');
+                return true;
+            } catch (error) {
+                console.error('Erro ao inicializar Firebase:', error);
                 return false;
+            } finally {
+                this._initPromise = null;
             }
+        })();
 
-            // Usar instâncias já inicializadas
-            this.db = window.firebase.db;
-            this.auth = window.firebase.auth;
-            
-            // Configurar listener de estado de autenticação
-            this.setupAuthStateListener();
-            
-            this.isInitialized = true;
-            console.log('Firebase inicializado com sucesso!');
-            return true;
-
-        } catch (error) {
-            console.error('Erro ao inicializar Firebase:', error);
-            return false;
-        }
+        return this._initPromise;
     }
 
     // Configurar listener de estado de autenticação
@@ -224,12 +231,18 @@ class FirebaseManager {
         }
 
         try {
+            const ts =
+                typeof data.timestamp === 'number' && Number.isFinite(data.timestamp)
+                    ? data.timestamp
+                    : Date.now();
             const recordData = {
-                ...data,
-                userId: this.currentUser.uid, // Adicionar ID do usuário
-                userEmail: this.currentUser.email, // Adicionar email do usuário
-                timestamp: Date.now(),
-                createdAt: new Date().toISOString()
+                mes: data.mes,
+                semana: data.semana,
+                peso: data.peso,
+                data: data.data,
+                userId: this.currentUser.uid,
+                timestamp: ts,
+                createdAt: new Date().toISOString(),
             };
 
             const docRef = await window.firebaseSDK.addDoc(

@@ -30,3 +30,6 @@ coverage/
 # Firebase (credenciais nativas — não usadas na web, mas seguro ignorar)
 google-services.json
 GoogleService-Info.plist
+
+# Configuração web Firebase (não commitar — use firebase-config.example.js)
+src/config/firebase-config.js

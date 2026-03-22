@@ -16,6 +16,8 @@ const MONTH_LABELS_PT = [
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
 ];
 
+const SKIP_LANDING_KEY = 'weightcharts_skip_landing';
+
 class WeightApp {
     constructor() {
         this.chart = null;
@@ -120,17 +122,58 @@ class WeightApp {
         el.textContent = `Usa a data de hoje — ${this.formatPeriodLabel(new Date())}.`;
     }
 
-    // Verificar estado inicial de autenticação
+    // Verificar estado inicial de autenticação (sessão já disponível de forma síncrona)
     async checkAuthState() {
+        await firebaseManager.initialize();
         if (firebaseManager.isAuthenticated()) {
             this.isAuthenticated = true;
             this.currentUser = firebaseManager.getCurrentUser();
             this.updateAuthUI();
             await this.loadThemeForUser();
             this.loadInitialData();
-        } else {
-            this.showAuthScreen();
+            this.hideLandingScreen();
+            try {
+                localStorage.setItem(SKIP_LANDING_KEY, '1');
+            } catch {
+                /* ignore */
+            }
         }
+        // Sem sessão síncrona: landing vs login é decidido em userAuthChanged (restauro assíncrono)
+    }
+
+    shouldSkipLanding() {
+        try {
+            return localStorage.getItem(SKIP_LANDING_KEY) === '1';
+        } catch {
+            return false;
+        }
+    }
+
+    showLandingScreen() {
+        const landing = document.getElementById('landingScreen');
+        if (landing) {
+            landing.classList.remove('hidden');
+            landing.classList.add('flex');
+        }
+        this.hideAuthScreen();
+    }
+
+    hideLandingScreen() {
+        const landing = document.getElementById('landingScreen');
+        if (landing) {
+            landing.classList.add('hidden');
+            landing.classList.remove('flex');
+        }
+    }
+
+    startFromLanding() {
+        try {
+            localStorage.setItem(SKIP_LANDING_KEY, '1');
+        } catch {
+            /* ignore */
+        }
+        this.hideLandingScreen();
+        this.showAuthScreen();
     }
 
     // Configurar listener de autenticação
@@ -143,6 +186,12 @@ class WeightApp {
             
             if (user) {
                 console.log('Usuário autenticado na aplicação:', user.email);
+                this.hideLandingScreen();
+                try {
+                    localStorage.setItem(SKIP_LANDING_KEY, '1');
+                } catch {
+                    /* ignore */
+                }
                 this.hideAuthScreen();
                 void this.loadThemeForUser();
                 this.loadInitialData();
@@ -150,7 +199,12 @@ class WeightApp {
                 console.log('Usuário desautenticado');
                 this.applyTheme('dark');
                 this.clearData();
-                this.showAuthScreen();
+                if (this.shouldSkipLanding()) {
+                    this.hideLandingScreen();
+                    this.showAuthScreen();
+                } else {
+                    this.showLandingScreen();
+                }
             }
         });
     }
@@ -319,6 +373,11 @@ class WeightApp {
         const btnLogout = document.getElementById('btnLogout');
         if (btnLogout) {
             btnLogout.addEventListener('click', () => this.handleLogout());
+        }
+
+        const btnStartApp = document.getElementById('btnStartApp');
+        if (btnStartApp) {
+            btnStartApp.addEventListener('click', () => this.startFromLanding());
         }
 
         // Botão de redefinir senha
@@ -734,15 +793,16 @@ class WeightApp {
                 const reader = new FileReader();
                 reader.onload = async (e) => {
                     try {
-                        if (await weightDB.importData(e.target.result)) {
-                            this.showSuccessMessage('Dados importados com sucesso!');
-                            await this.updateChart();
-                            await this.refreshListaRegistros();
-                        } else {
-                            this.showErrorMessage('Erro ao importar dados');
-                        }
+                        await weightDB.importData(e.target.result);
+                        this.showSuccessMessage('Dados importados com sucesso!');
+                        await this.updateChart();
+                        await this.refreshListaRegistros();
                     } catch (error) {
-                        this.showErrorMessage('Erro ao importar dados: ' + error.message);
+                        const msg =
+                            error instanceof Error && error.message
+                                ? error.message
+                                : 'Erro ao importar dados';
+                        this.showErrorMessage(msg);
                     }
                 };
                 reader.readAsText(file);

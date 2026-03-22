@@ -15,6 +15,109 @@ function sortMesKeys(meses) {
     return [...meses].sort((a, b) => MONTH_ORDER.indexOf(a) - MONTH_ORDER.indexOf(b));
 }
 
+/** Limite de tamanho do ficheiro JSON (bytes UTF-8) — evita DoS por memória */
+const MAX_IMPORT_JSON_BYTES = 2 * 1024 * 1024;
+/** Máximo de registos numa importação */
+const MAX_IMPORT_RECORDS = 5000;
+/** Máximo de registos numa única semana */
+const MAX_RECORDS_PER_WEEK = 500;
+
+function normalizeImportPeso(raw) {
+    if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
+    if (typeof raw === 'string') {
+        const n = parseFloat(raw.replace(',', '.'));
+        return Number.isFinite(n) ? n : NaN;
+    }
+    return NaN;
+}
+
+function normalizeImportTimestamp(ts) {
+    const now = Date.now();
+    if (typeof ts === 'number' && Number.isFinite(ts) && ts > 0 && ts <= now + 86400000) {
+        return Math.round(ts);
+    }
+    return now;
+}
+
+/**
+ * Valida e normaliza o JSON exportado pela app; rejeita estruturas estranhas ou excessivas.
+ * @param {unknown} raw
+ */
+function validateAndNormalizeImportPayload(raw) {
+    if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+        throw new Error('O ficheiro deve ser um objeto JSON (meses → semanas → registos).');
+    }
+
+    const topKeys = Object.keys(raw);
+    if (topKeys.length > 24) {
+        throw new Error('Demasiadas chaves no nível superior.');
+    }
+
+    const out = {};
+    let total = 0;
+
+    for (const mes of topKeys) {
+        if (!MONTH_ORDER.includes(mes)) {
+            throw new Error(`Mês inválido: "${mes}". Usa as chaves em português (ex.: janeiro, fevereiro).`);
+        }
+        const semObj = raw[mes];
+        if (semObj === null || typeof semObj !== 'object' || Array.isArray(semObj)) {
+            throw new Error(`Estrutura inválida para o mês "${mes}".`);
+        }
+
+        out[mes] = {};
+        const semKeys = Object.keys(semObj);
+
+        for (const semana of semKeys) {
+            const semStr = String(semana);
+            if (!/^[1-4]$/.test(semStr)) {
+                throw new Error(`Semana inválida: "${semana}" (esperado 1 a 4).`);
+            }
+            const arr = semObj[semana];
+            if (!Array.isArray(arr)) {
+                throw new Error(`A semana ${semStr} de "${mes}" deve ser uma lista de registos.`);
+            }
+            if (arr.length > MAX_RECORDS_PER_WEEK) {
+                throw new Error(`Demasiados registos numa semana (máx. ${MAX_RECORDS_PER_WEEK}).`);
+            }
+
+            out[mes][semStr] = [];
+
+            for (const reg of arr) {
+                if (reg === null || typeof reg !== 'object' || Array.isArray(reg)) {
+                    throw new Error('Cada registo deve ser um objeto com peso.');
+                }
+                total += 1;
+                if (total > MAX_IMPORT_RECORDS) {
+                    throw new Error(`Máximo de ${MAX_IMPORT_RECORDS} registos por importação.`);
+                }
+
+                const peso = normalizeImportPeso(reg.peso);
+                if (!Number.isFinite(peso) || peso <= 0 || peso > 500) {
+                    throw new Error('Peso inválido num registo (use um número entre 0 e 500 kg).');
+                }
+
+                const rec = {
+                    peso,
+                    data:
+                        typeof reg.data === 'string' && reg.data.length > 0
+                            ? reg.data.slice(0, 64)
+                            : new Date().toLocaleDateString('pt-BR'),
+                    timestamp: normalizeImportTimestamp(reg.timestamp),
+                };
+
+                if (typeof reg.localId === 'string' && reg.localId.length <= 128) {
+                    rec.localId = reg.localId;
+                }
+
+                out[mes][semStr].push(rec);
+            }
+        }
+    }
+
+    return out;
+}
+
 const MONTH_LABELS_PT = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
@@ -532,41 +635,59 @@ class WeightDatabase {
 
     // Importar dados
     async importData(dataString) {
+        if (typeof dataString !== 'string') {
+            throw new Error('Conteúdo de importação inválido.');
+        }
+
+        if (typeof TextEncoder !== 'undefined') {
+            const bytes = new TextEncoder().encode(dataString).length;
+            if (bytes > MAX_IMPORT_JSON_BYTES) {
+                throw new Error('Ficheiro demasiado grande (máximo 2 MB).');
+            }
+        } else if (dataString.length > MAX_IMPORT_JSON_BYTES) {
+            throw new Error('Ficheiro demasiado grande (máximo 2 MB).');
+        }
+
+        let parsed;
         try {
-            const data = JSON.parse(dataString);
-            
+            parsed = JSON.parse(dataString);
+        } catch {
+            throw new Error('JSON inválido ou corrompido.');
+        }
+
+        const data = validateAndNormalizeImportPayload(parsed);
+
+        try {
             if (this.useFirebase) {
-                // Limpar dados existentes no Firebase
                 const firebaseRecords = await firebaseManager.getWeightRecords();
                 for (const record of firebaseRecords) {
                     await firebaseManager.deleteWeightRecord(record.id);
                 }
-                
-                // Importar novos dados para Firebase
-                for (const mes in data) {
-                    for (const semana in data[mes]) {
+
+                for (const mes of Object.keys(data)) {
+                    for (const semana of Object.keys(data[mes])) {
                         for (const registro of data[mes][semana]) {
                             await firebaseManager.addWeightRecord({
-                                mes: mes,
-                                semana: semana,
+                                mes,
+                                semana,
                                 peso: registro.peso,
                                 data: registro.data,
-                                timestamp: registro.timestamp
+                                timestamp: registro.timestamp,
                             });
                         }
                     }
                 }
                 console.log('Dados importados para Firebase');
+                await this.loadData();
+            } else {
+                this.registros = data;
+                this.saveToLocalStorage();
             }
-            
-            // Atualizar dados locais
-            this.registros = data;
-            this.saveToLocalStorage();
-            
+
             return true;
         } catch (error) {
             console.error('Erro ao importar dados:', error);
-            return false;
+            throw error;
         }
     }
 
