@@ -368,10 +368,10 @@ class FirebaseManager {
 
         try {
             const docRef = window.firebaseSDK.doc(this.db, 'weightRecords', recordId);
-            const doc = await window.firebaseSDK.getDoc(docRef);
-            
-            if (doc.exists) {
-                return { id: doc.id, ...doc.data() };
+            const docSnap = await window.firebaseSDK.getDoc(docRef);
+
+            if (docSnap.exists()) {
+                return { id: docSnap.id, ...docSnap.data() };
             }
             return null;
 
@@ -419,7 +419,7 @@ class FirebaseManager {
                 { merge: true },
             );
         } catch (e) {
-            console.warn('Não foi possível guardar tema na nuvem:', e);
+            console.warn('Não foi possível salvar tema na nuvem:', e);
         }
     }
 
@@ -428,12 +428,47 @@ class FirebaseManager {
         try {
             const docRef = window.firebaseSDK.doc(this.db, 'users', this.currentUser.uid);
             const snap = await window.firebaseSDK.getDoc(docRef);
-            if (snap.exists) {
+            if (snap.exists()) {
                 const t = snap.data().theme;
                 if (t === 'light' || t === 'dark') return t;
             }
         } catch (e) {
             console.warn('Não foi possível ler tema na nuvem:', e);
+        }
+        return null;
+    }
+
+    /** Meta de peso na coleção users/{uid} (merge). null remove a meta. */
+    async saveUserGoal(goal) {
+        if (!this.isAvailable() || !this.currentUser) return;
+        const value =
+            typeof goal === 'number' && Number.isFinite(goal) && goal > 0 ? goal : null;
+        try {
+            const docRef = window.firebaseSDK.doc(this.db, 'users', this.currentUser.uid);
+            await window.firebaseSDK.setDoc(
+                docRef,
+                {
+                    metaPeso: value,
+                    preferencesUpdatedAt: window.firebaseSDK.serverTimestamp(),
+                },
+                { merge: true },
+            );
+        } catch (e) {
+            console.warn('Não foi possível salvar meta na nuvem:', e);
+        }
+    }
+
+    async loadUserGoal() {
+        if (!this.isAvailable() || !this.currentUser) return null;
+        try {
+            const docRef = window.firebaseSDK.doc(this.db, 'users', this.currentUser.uid);
+            const snap = await window.firebaseSDK.getDoc(docRef);
+            if (snap.exists()) {
+                const g = snap.data().metaPeso;
+                if (typeof g === 'number' && Number.isFinite(g) && g > 0) return g;
+            }
+        } catch (e) {
+            console.warn('Não foi possível ler meta na nuvem:', e);
         }
         return null;
     }

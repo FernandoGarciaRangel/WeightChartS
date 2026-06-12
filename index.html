@@ -11,7 +11,8 @@
     <title>Acompanhamento de Peso - WeightChartS</title>
     
     <link rel="icon" type="image/svg+xml" href="src/icons/weight-chart-icon.svg">
-    <link rel="apple-touch-icon" href="src/icons/weight-chart-icon.svg">
+    <link rel="icon" type="image/png" sizes="192x192" href="src/icons/icon-192.png">
+    <link rel="apple-touch-icon" href="src/icons/apple-touch-icon.png">
     
     <link rel="manifest" href="src/manifest.json">
     
@@ -113,21 +114,21 @@
             </div>
 
             <p class="text-zinc-300 text-center leading-relaxed mb-8 text-[15px] sm:text-base">
-                Regista o teu peso ao longo do tempo, vê a <strong class="text-orange-400 font-semibold">evolução num gráfico</strong> e mantém os dados sincronizados na nuvem com a tua conta — ideal para acompanhares objetivos com consistência.
+                Registre seu peso ao longo do tempo, veja a <strong class="text-orange-400 font-semibold">evolução num gráfico</strong> e mantenha os dados sincronizados na nuvem com a sua conta — ideal para acompanhar objetivos com consistência.
             </p>
 
             <ul class="w-full space-y-3 mb-10 text-left text-sm text-zinc-400">
                 <li class="flex gap-3 items-start">
                     <span class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-orange-500/15 text-orange-400 text-xs font-bold">1</span>
-                    <span><strong class="text-zinc-200">Registo rápido</strong> — adiciona peso em segundos, com data automática.</span>
+                    <span><strong class="text-zinc-200">Registro rápido</strong> — adicione peso em segundos, com data automática.</span>
                 </li>
                 <li class="flex gap-3 items-start">
                     <span class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-orange-500/15 text-orange-400 text-xs font-bold">2</span>
-                    <span><strong class="text-zinc-200">Gráfico e estatísticas</strong> — visualiza tendências e mantém motivação.</span>
+                    <span><strong class="text-zinc-200">Gráfico e estatísticas</strong> — visualize tendências e mantenha a motivação.</span>
                 </li>
                 <li class="flex gap-3 items-start">
                     <span class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-orange-500/15 text-orange-400 text-xs font-bold">3</span>
-                    <span><strong class="text-zinc-200">Conta segura</strong> — inicia sessão para guardar os dados no Firebase.</span>
+                    <span><strong class="text-zinc-200">Conta segura</strong> — faça login para salvar os dados no Firebase.</span>
                 </li>
             </ul>
 
@@ -271,9 +272,9 @@
             <div class="space-y-4">
                 <div>
                     <label for="peso" class="block text-sm font-medium text-zinc-400 mb-2">Peso (kg)</label>
-                    <input type="number" id="peso" step="0.1" min="0" max="500" 
-                           class="w-full rounded-xl border border-zinc-600 bg-zinc-900/80 p-4 text-center text-lg text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20" 
-                           placeholder="0.0">
+                    <input type="text" inputmode="decimal" id="peso" autocomplete="off"
+                           class="w-full rounded-xl border border-zinc-600 bg-zinc-900/80 p-4 text-center text-lg text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+                           placeholder="0,0">
                 </div>
                 <button type="button" id="btnAdicionar" class="w-full rounded-xl bg-orange-500 py-4 px-6 text-lg font-semibold text-white shadow-lg shadow-orange-500/30 transition hover:bg-orange-400 active:scale-[0.99]">
                     Adicionar registro
@@ -282,16 +283,32 @@
         </div>
 
         <div class="theme-card rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 backdrop-blur-sm shadow-xl shadow-black/20">
-            <h2 class="text-lg font-semibold mb-1 text-white">Corrigir registos</h2>
-            <p class="text-xs text-zinc-500 mb-3">Últimos registos — altera o valor se tiveres enganado ao registar.</p>
-            <p id="listaRegistrosVazia" class="text-sm text-zinc-500 py-2 hidden">Ainda não há registos.</p>
-            <ul id="listaRegistros" class="divide-y divide-zinc-800/80 rounded-lg border border-zinc-800/80 overflow-hidden" aria-label="Lista de registos de peso"></ul>
+            <h2 class="text-lg font-semibold mb-1 text-white">Seus registros</h2>
+            <p class="text-xs text-zinc-500 mb-3">Os mais recentes — corrija o valor ou exclua se errou ao registrar.</p>
+            <p id="listaRegistrosVazia" class="text-sm text-zinc-500 py-2 hidden">Ainda não há registros.</p>
+            <ul id="listaRegistros" class="divide-y divide-zinc-800/80 rounded-lg border border-zinc-800/80 overflow-hidden" aria-label="Registros de peso mais recentes"></ul>
+            <button type="button" id="btnVerTodos" class="hidden mt-3 w-full rounded-lg border border-zinc-700 bg-zinc-800/60 py-2.5 text-sm font-medium text-zinc-200 hover:border-orange-500/50 hover:bg-zinc-800 transition-colors">Ver todos</button>
+        </div>
+
+        <div class="theme-card rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 backdrop-blur-sm shadow-xl shadow-black/20">
+            <h3 class="text-lg font-semibold mb-1 text-white">Meta de peso</h3>
+            <p class="text-xs text-zinc-500 mb-3">Defina um alvo para acompanhar o progresso no gráfico.</p>
+            <div class="flex gap-2">
+                <input type="text" inputmode="decimal" id="metaInput" autocomplete="off" placeholder="Ex.: 80,0"
+                       class="flex-1 min-w-0 rounded-xl border border-zinc-600 bg-zinc-900/80 p-3 text-center text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20">
+                <button type="button" id="btnDefinirMeta" class="shrink-0 rounded-xl bg-orange-500 px-4 text-sm font-semibold text-white hover:bg-orange-400">Definir</button>
+                <button type="button" id="btnRemoverMeta" class="hidden shrink-0 rounded-xl border border-zinc-600 px-4 text-sm font-medium text-zinc-300 hover:bg-zinc-800">Remover</button>
+            </div>
+            <p id="metaProgresso" class="hidden text-sm text-zinc-300 mt-3"></p>
         </div>
 
         <div class="theme-card rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 backdrop-blur-sm shadow-xl shadow-black/20">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
                 <h2 class="text-lg font-semibold text-white">Evolução do peso</h2>
                 <div class="flex flex-wrap gap-2">
+                    <button type="button" id="btnExportarImagem" class="rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 hover:border-orange-500/40 hover:bg-zinc-700 transition-colors">
+                        Imagem
+                    </button>
                     <button type="button" id="btnExportar" class="rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 hover:border-orange-500/40 hover:bg-zinc-700 transition-colors">
                         Exportar
                     </button>
@@ -303,21 +320,56 @@
                     </button>
                 </div>
             </div>
+            <div id="filtroPeriodo" class="flex flex-wrap gap-1.5 mb-3" role="group" aria-label="Período do gráfico">
+                <button type="button" class="range-btn rounded-lg border border-zinc-700 bg-zinc-800/60 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:border-orange-500/40" data-range="30">30 dias</button>
+                <button type="button" class="range-btn rounded-lg border border-zinc-700 bg-zinc-800/60 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:border-orange-500/40" data-range="90">90 dias</button>
+                <button type="button" class="range-btn rounded-lg border border-zinc-700 bg-zinc-800/60 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:border-orange-500/40" data-range="365">1 ano</button>
+                <button type="button" class="range-btn rounded-lg border border-zinc-700 bg-zinc-800/60 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:border-orange-500/40" data-range="all">Tudo</button>
+            </div>
             <div class="relative w-full min-h-[340px] h-[400px] sm:min-h-[380px] sm:h-[440px]">
                 <canvas id="graficoPeso"></canvas>
+                <div id="graficoVazio" class="hidden absolute inset-0 flex flex-col items-center justify-center text-center px-4 pointer-events-none">
+                    <p class="text-zinc-400 text-sm">Ainda não há registros.</p>
+                    <p class="text-zinc-500 text-xs mt-1">Adicione seu primeiro peso acima para ver a evolução.</p>
+                </div>
             </div>
         </div>
 
         <div class="theme-card rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 backdrop-blur-sm shadow-xl shadow-black/20">
             <h3 class="text-lg font-semibold mb-3 text-white">Estatísticas</h3>
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-2 gap-3 mb-3">
                 <div class="text-center rounded-xl border border-orange-500/20 bg-orange-500/10 p-4">
                     <div class="text-2xl font-bold text-orange-400" id="pesoAtual">--</div>
                     <div class="text-sm text-zinc-400">Peso atual</div>
+                    <div class="text-xs text-zinc-400 mt-1" id="pesoDelta"></div>
                 </div>
                 <div class="text-center rounded-xl border border-zinc-700 bg-zinc-800/50 p-4">
                     <div class="text-2xl font-bold text-zinc-100" id="totalRegistros">0</div>
                     <div class="text-sm text-zinc-400">Registros</div>
+                </div>
+            </div>
+            <div class="grid grid-cols-3 gap-2 text-center">
+                <div class="rounded-lg border border-zinc-800 bg-zinc-900/50 p-2.5">
+                    <div class="text-sm font-semibold text-zinc-200" id="stat7">–</div>
+                    <div class="text-[11px] text-zinc-500">7 dias</div>
+                </div>
+                <div class="rounded-lg border border-zinc-800 bg-zinc-900/50 p-2.5">
+                    <div class="text-sm font-semibold text-zinc-200" id="stat30">–</div>
+                    <div class="text-[11px] text-zinc-500">30 dias</div>
+                </div>
+                <div class="rounded-lg border border-zinc-800 bg-zinc-900/50 p-2.5">
+                    <div class="text-sm font-semibold text-zinc-200" id="statMedia">–</div>
+                    <div class="text-[11px] text-zinc-500">Média</div>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-center mt-2">
+                <div class="rounded-lg border border-zinc-800 bg-zinc-900/50 p-2.5">
+                    <div class="text-sm font-semibold text-zinc-200" id="statMin">–</div>
+                    <div class="text-[11px] text-zinc-500">Mínimo</div>
+                </div>
+                <div class="rounded-lg border border-zinc-800 bg-zinc-900/50 p-2.5">
+                    <div class="text-sm font-semibold text-zinc-200" id="statMax">–</div>
+                    <div class="text-[11px] text-zinc-500">Máximo</div>
                 </div>
             </div>
         </div>
@@ -330,15 +382,38 @@
         </footer>
     </main>
 
+    <div id="modalRegistros" class="fixed inset-0 z-[58] hidden flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="modalRegistrosTitulo">
+        <div class="theme-auth-panel w-full max-w-md rounded-2xl border border-zinc-700 bg-zinc-900 shadow-2xl ring-1 ring-orange-500/10 flex flex-col max-h-[80vh]">
+            <div class="flex items-center justify-between p-5 pb-3 border-b border-zinc-800">
+                <h3 id="modalRegistrosTitulo" class="text-lg font-semibold text-white">Seus registros</h3>
+                <button type="button" id="btnFecharRegistros" class="rounded-lg px-2 py-1 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800" aria-label="Fechar">✕</button>
+            </div>
+            <ul id="listaRegistrosTodos" class="flex-1 min-h-0 divide-y divide-zinc-800/80 overflow-y-auto p-2" aria-label="Todos os registros de peso"></ul>
+        </div>
+    </div>
+
+    <div id="modalConfirmar" class="fixed inset-0 z-[62] hidden flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="modalConfirmarTitulo">
+        <div class="theme-auth-panel w-full max-w-sm rounded-2xl border border-zinc-700 bg-zinc-900 p-5 shadow-2xl ring-1 ring-red-500/10">
+            <h3 id="modalConfirmarTitulo" class="text-lg font-semibold text-white mb-1">Confirmar</h3>
+            <p id="modalConfirmarMensagem" class="text-sm text-zinc-400 mb-4"></p>
+            <div class="flex gap-2">
+                <button type="button" id="btnConfirmarCancelar" class="flex-1 rounded-xl border border-zinc-600 py-2.5 text-sm font-medium text-zinc-300 hover:bg-zinc-800">Cancelar</button>
+                <button type="button" id="btnConfirmarOk" class="flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white hover:bg-red-500">Excluir</button>
+            </div>
+        </div>
+    </div>
+
     <div id="modalEditarPeso" class="fixed inset-0 z-[60] hidden flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="modalEditarPesoTitulo">
         <div class="theme-auth-panel w-full max-w-sm rounded-2xl border border-zinc-700 bg-zinc-900 p-5 shadow-2xl ring-1 ring-orange-500/10">
-            <h3 id="modalEditarPesoTitulo" class="text-lg font-semibold text-white mb-1">Corrigir peso</h3>
+            <h3 id="modalEditarPesoTitulo" class="text-lg font-semibold text-white mb-1">Corrigir registo</h3>
             <p id="editarPesoContexto" class="text-sm text-zinc-400 mb-4"></p>
             <label for="editarPesoValor" class="block text-xs font-medium text-zinc-500 mb-1.5">Peso (kg)</label>
-            <input type="number" id="editarPesoValor" step="0.1" min="0" max="500" class="w-full rounded-xl border border-zinc-600 bg-zinc-950/80 p-3 text-center text-lg text-zinc-100 mb-4 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20">
+            <input type="text" inputmode="decimal" id="editarPesoValor" autocomplete="off" class="w-full rounded-xl border border-zinc-600 bg-zinc-950/80 p-3 text-center text-lg text-zinc-100 mb-4 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20">
+            <label for="editarDataValor" class="block text-xs font-medium text-zinc-500 mb-1.5">Data</label>
+            <input type="date" id="editarDataValor" class="theme-date-input w-full rounded-xl border border-zinc-600 bg-zinc-950/80 p-3 text-center text-base text-zinc-100 mb-4 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20">
             <div class="flex gap-2">
                 <button type="button" id="btnCancelarEditarPeso" class="flex-1 rounded-xl border border-zinc-600 py-2.5 text-sm font-medium text-zinc-300 hover:bg-zinc-800">Cancelar</button>
-                <button type="button" id="btnGuardarEditarPeso" class="flex-1 rounded-xl bg-orange-500 py-2.5 text-sm font-semibold text-white hover:bg-orange-400">Guardar</button>
+                <button type="button" id="btnGuardarEditarPeso" class="flex-1 rounded-xl bg-orange-500 py-2.5 text-sm font-semibold text-white hover:bg-orange-400">Salvar</button>
             </div>
         </div>
     </div>

@@ -21,6 +21,12 @@ class WeightChart {
     constructor(canvasId) {
         this.canvasId = canvasId;
         this.chart = null;
+        /** Datas completas (1 por ponto) para o título do tooltip. */
+        this._fullLabels = [];
+        /** Filtro de período ativo em dias (null = tudo). */
+        this._rangeDays = null;
+        /** Meta de peso (null = sem meta). */
+        this._goal = null;
         this.init();
     }
 
@@ -86,8 +92,15 @@ class WeightChart {
                         cornerRadius: 10,
                         displayColors: false,
                         callbacks: {
-                            label: function(context) {
-                                return `Peso: ${context.parsed.y} kg`;
+                            title: (items) => {
+                                const i = items[0]?.dataIndex;
+                                const full = this._fullLabels;
+                                return (full && full[i]) || items[0]?.label || '';
+                            },
+                            label: (context) => {
+                                const v = context.parsed.y;
+                                const kg = `${Number(v).toFixed(1).replace('.', ',')} kg`;
+                                return context.datasetIndex === 1 ? `Meta: ${kg}` : `Peso: ${kg}`;
                             }
                         }
                     },
@@ -126,8 +139,10 @@ class WeightChart {
                             color: GRID,
                         },
                         ticks: {
-                            maxRotation: 45,
+                            maxRotation: 0,
                             minRotation: 0,
+                            autoSkip: true,
+                            autoSkipPadding: 12,
                             color: TICK,
                             font: {
                                 size: isNarrow ? 9 : 10,
@@ -173,15 +188,18 @@ class WeightChart {
         });
     }
 
-    async updateChart() {
+    async updateChart(rangeDays = this._rangeDays) {
         if (!this.chart) return;
+        this._rangeDays = rangeDays ?? null;
 
         try {
-            const { dados, labels } = await weightDB.getAllRecords();
-            
+            const { dados, labels, fullLabels } = await weightDB.getAllRecords(this._rangeDays);
+
             this.chart.data.labels = labels;
+            this._fullLabels = fullLabels || labels;
             this.chart.data.datasets[0].data = dados;
-            
+            this.applyGoalDataset(labels.length);
+
             this.syncTheme();
             this.chart.update();
         } catch (error) {
@@ -191,6 +209,42 @@ class WeightChart {
 
     refresh() {
         this.updateChart();
+    }
+
+    /** Define (ou remove, com null) a meta de peso desenhada como linha tracejada. */
+    setGoal(value) {
+        this._goal =
+            typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
+        if (!this.chart) return;
+        this.applyGoalDataset(this.chart.data.labels.length);
+        this.chart.update();
+    }
+
+    /** Garante/atualiza/remove o dataset da meta (linha horizontal). */
+    applyGoalDataset(count) {
+        if (!this.chart) return;
+        const datasets = this.chart.data.datasets;
+
+        if (this._goal && count > 0) {
+            const data = new Array(count).fill(this._goal);
+            if (datasets[1]) {
+                datasets[1].data = data;
+            } else {
+                datasets.push({
+                    label: 'Meta',
+                    data,
+                    borderColor: 'rgba(16, 185, 129, 0.9)',
+                    borderDash: [6, 6],
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    pointHoverRadius: 0,
+                    fill: false,
+                    tension: 0,
+                });
+            }
+        } else if (datasets[1]) {
+            datasets.splice(1, 1);
+        }
     }
 
     /** Só cores (após mudar data-theme) */

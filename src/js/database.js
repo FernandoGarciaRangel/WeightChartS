@@ -15,11 +15,24 @@ function sortMesKeys(meses) {
     return [...meses].sort((a, b) => MONTH_ORDER.indexOf(a) - MONTH_ORDER.indexOf(b));
 }
 
-/** Limite de tamanho do ficheiro JSON (bytes UTF-8) — evita DoS por memória */
+/**
+ * Deriva mês (chave PT), semana (1–4) e data legível a partir de um timestamp (ms).
+ * Usa o fuso local para que a semana coincida com o dia escolhido pelo utilizador.
+ */
+function derivePeriodFromMillis(ms) {
+    const d = new Date(ms);
+    return {
+        mes: MONTH_ORDER[d.getMonth()],
+        semana: String(Math.min(4, Math.max(1, Math.ceil(d.getDate() / 7)))),
+        data: d.toLocaleDateString('pt-BR'),
+    };
+}
+
+/** Limite de tamanho do arquivo JSON (bytes UTF-8) — evita DoS por memória */
 const MAX_IMPORT_JSON_BYTES = 2 * 1024 * 1024;
-/** Máximo de registos numa importação */
+/** Máximo de registros numa importação */
 const MAX_IMPORT_RECORDS = 5000;
-/** Máximo de registos numa única semana */
+/** Máximo de registros numa única semana */
 const MAX_RECORDS_PER_WEEK = 500;
 
 function normalizeImportPeso(raw) {
@@ -45,12 +58,12 @@ function normalizeImportTimestamp(ts) {
  */
 function validateAndNormalizeImportPayload(raw) {
     if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
-        throw new Error('O ficheiro deve ser um objeto JSON (meses → semanas → registos).');
+        throw new Error('O arquivo deve ser um objeto JSON (meses → semanas → registros).');
     }
 
     const topKeys = Object.keys(raw);
     if (topKeys.length > 24) {
-        throw new Error('Demasiadas chaves no nível superior.');
+        throw new Error('Chaves demais no nível superior.');
     }
 
     const out = {};
@@ -58,7 +71,7 @@ function validateAndNormalizeImportPayload(raw) {
 
     for (const mes of topKeys) {
         if (!MONTH_ORDER.includes(mes)) {
-            throw new Error(`Mês inválido: "${mes}". Usa as chaves em português (ex.: janeiro, fevereiro).`);
+            throw new Error(`Mês inválido: "${mes}". Use as chaves em português (ex.: janeiro, fevereiro).`);
         }
         const semObj = raw[mes];
         if (semObj === null || typeof semObj !== 'object' || Array.isArray(semObj)) {
@@ -75,26 +88,26 @@ function validateAndNormalizeImportPayload(raw) {
             }
             const arr = semObj[semana];
             if (!Array.isArray(arr)) {
-                throw new Error(`A semana ${semStr} de "${mes}" deve ser uma lista de registos.`);
+                throw new Error(`A semana ${semStr} de "${mes}" deve ser uma lista de registros.`);
             }
             if (arr.length > MAX_RECORDS_PER_WEEK) {
-                throw new Error(`Demasiados registos numa semana (máx. ${MAX_RECORDS_PER_WEEK}).`);
+                throw new Error(`Registros demais numa semana (máx. ${MAX_RECORDS_PER_WEEK}).`);
             }
 
             out[mes][semStr] = [];
 
             for (const reg of arr) {
                 if (reg === null || typeof reg !== 'object' || Array.isArray(reg)) {
-                    throw new Error('Cada registo deve ser um objeto com peso.');
+                    throw new Error('Cada registro deve ser um objeto com peso.');
                 }
                 total += 1;
                 if (total > MAX_IMPORT_RECORDS) {
-                    throw new Error(`Máximo de ${MAX_IMPORT_RECORDS} registos por importação.`);
+                    throw new Error(`Máximo de ${MAX_IMPORT_RECORDS} registros por importação.`);
                 }
 
                 const peso = normalizeImportPeso(reg.peso);
                 if (!Number.isFinite(peso) || peso <= 0 || peso > 500) {
-                    throw new Error('Peso inválido num registo (use um número entre 0 e 500 kg).');
+                    throw new Error('Peso inválido num registro (use um número entre 0 e 500 kg).');
                 }
 
                 const rec = {
@@ -147,6 +160,16 @@ function toMillis(ts) {
     return null;
 }
 
+/** "YYYY-MM-DD" no fuso local — identifica o dia de um registo (um registo por dia). */
+function dayKeyFromTs(ts) {
+    const ms = toMillis(ts);
+    if (ms == null || !Number.isFinite(ms)) return null;
+    const d = new Date(ms);
+    const mo = String(d.getMonth() + 1).padStart(2, '0');
+    const da = String(d.getDate()).padStart(2, '0');
+    return `${d.getFullYear()}-${mo}-${da}`;
+}
+
 /** Texto de período alinhado com a data real do registo (fuso local). */
 function formatPeriodLabelFromTs(ms) {
     if (ms == null || !Number.isFinite(ms)) return null;
@@ -171,19 +194,94 @@ function recordPeriodLabel(record) {
     return `${prettyMes} · Semana ${semana}`.trim();
 }
 
+/** Mês abreviado em PT para rótulos curtos do eixo X. */
+const MONTH_ABBR_PT = [
+    'jan', 'fev', 'mar', 'abr', 'mai', 'jun',
+    'jul', 'ago', 'set', 'out', 'nov', 'dez',
+];
+
+/**
+ * Rótulos do eixo do gráfico a partir da data real do registro:
+ * `short` para o eixo X (ex.: "12 jun"; inclui o ano quando difere do atual)
+ * e `full` para o tooltip (ex.: "12 de junho de 2026").
+ * Sem timestamp válido, recai no rótulo de mês/semana.
+ */
+function recordAxisLabels(record) {
+    const ms = toMillis(record.timestamp);
+    if (ms != null && Number.isFinite(ms)) {
+        const d = new Date(ms);
+        const dia = d.getDate();
+        const mesAbbr = MONTH_ABBR_PT[d.getMonth()];
+        const year = d.getFullYear();
+        const short =
+            year === new Date().getFullYear()
+                ? `${dia} ${mesAbbr}`
+                : `${dia} ${mesAbbr} ${String(year).slice(2)}`;
+        const full = `${dia} de ${MONTH_LABELS_PT[d.getMonth()].toLowerCase()} de ${year}`;
+        return { short, full };
+    }
+    const fallback = recordPeriodLabel(record).replace(' · ', ' — ');
+    return { short: fallback, full: fallback };
+}
+
 class WeightDatabase {
     constructor() {
         this.registros = this.loadFromLocalStorage();
         this.useFirebase = false;
         this.currentUserId = null;
+        /** Cache em memória da lista cronológica (asc). Invalidado em cada escrita / troca de usuário. */
+        this._recordsCache = null;
         this.initializeFirebase();
         this.setupAuthListener();
+    }
+
+    invalidateCache() {
+        this._recordsCache = null;
+    }
+
+    /**
+     * Lista plana de registros, ordenada por timestamp (asc), com cache em memória.
+     * Fonte única para gráfico, estatísticas, lista e verificação de duplicados —
+     * evita reler a coleção do Firebase a cada chamada.
+     */
+    async getRecordsCached() {
+        if (this._recordsCache) return this._recordsCache;
+
+        let list;
+        if (this.useFirebase && this.currentUserId) {
+            const fb = await firebaseManager.getWeightRecords();
+            list = fb.map((r) => ({
+                id: r.id,
+                localId: null,
+                peso: r.peso,
+                data: r.data,
+                timestamp: toMillis(r.timestamp) || 0,
+                mes: r.mes,
+                semana: r.semana,
+            }));
+        } else {
+            this.migrateLocalIds();
+            list = this.flattenLocalChronological().map((r) => ({
+                id: r.id || null,
+                localId: r.localId || null,
+                peso: r.peso,
+                data: r.data,
+                timestamp: toMillis(r.timestamp) || 0,
+                mes: r.mes,
+                semana: r.semana,
+            }));
+        }
+
+        list.sort((a, b) => a.timestamp - b.timestamp);
+        this._recordsCache = list;
+        return list;
     }
 
     // Configurar listener de autenticação
     setupAuthListener() {
         window.addEventListener('userAuthChanged', (event) => {
             const user = event.detail.user;
+            this.invalidateCache();
             if (user) {
                 this.currentUserId = user.uid;
                 console.log('Usuário autenticado no banco:', this.currentUserId);
@@ -279,6 +377,7 @@ class WeightDatabase {
 
     // Carregar dados (Firebase ou localStorage)
     async loadData() {
+        this.invalidateCache();
         if (this.useFirebase && this.currentUserId) {
             try {
                 const firebaseRecords = await firebaseManager.getWeightRecords();
@@ -343,20 +442,41 @@ class WeightDatabase {
             : `id_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
     }
 
+    /**
+     * Verifica se já existe um registo no mesmo dia (fuso local) do timestamp dado.
+     * `exclude*` permite ignorar o próprio registo numa edição.
+     */
+    async hasRecordOnDay(ts, { excludeId = null, excludeLocalId = null } = {}) {
+        const target = dayKeyFromTs(ts);
+        if (target == null) return false;
+
+        const list = await this.getRecordsCached();
+        return list.some((r) => {
+            if (excludeId != null && r.id === excludeId) return false;
+            if (excludeLocalId != null && r.localId === excludeLocalId) return false;
+            return dayKeyFromTs(r.timestamp) === target;
+        });
+    }
+
     // Adicionar novo registro de peso
     async addWeightRecord(mes, semana, peso) {
-        if (!peso || peso <= 0) {
-            throw new Error('Peso inválido');
+        if (!Number.isFinite(peso) || peso <= 0 || peso > 500) {
+            throw new Error('Peso inválido (use um número entre 0 e 500 kg).');
         }
 
         if (!this.currentUserId && this.useFirebase) {
             throw new Error('Usuário não autenticado');
         }
 
+        const now = Date.now();
+        if (await this.hasRecordOnDay(now)) {
+            throw new Error('Já existe um registro para hoje. Corrija o registro de hoje em vez de criar outro.');
+        }
+
         const registro = {
             peso: peso,
             data: new Date().toLocaleDateString('pt-BR'),
-            timestamp: Date.now(),
+            timestamp: now,
             localId: this.newLocalId(),
         };
 
@@ -385,9 +505,10 @@ class WeightDatabase {
                 this.registros[mes][semana].push(registro);
                 this.saveToLocalStorage();
             }
-            
+
+            this.invalidateCache();
             return registro;
-            
+
         } catch (error) {
             console.error('Erro ao adicionar registro:', error);
             throw error;
@@ -409,6 +530,7 @@ class WeightDatabase {
                         timestamp: registro.timestamp || 0,
                         id: registro.id || null,
                         localId: registro.localId || null,
+                        data: registro.data,
                     });
                 }
             }
@@ -417,33 +539,33 @@ class WeightDatabase {
         return flat;
     }
 
-    // Obter todos os registros para o gráfico (cronologia crescente: esquerda = passado)
-    async getAllRecords() {
-        try {
-            if (this.useFirebase && this.currentUserId) {
-                const firebaseRecords = await firebaseManager.getWeightRecords();
-                const sorted = [...firebaseRecords].sort(
-                    (a, b) => (toMillis(a.timestamp) || 0) - (toMillis(b.timestamp) || 0),
-                );
-                const dados = sorted.map((r) => r.peso);
-                const labels = sorted.map((r) => recordPeriodLabel(r).replace(' · ', ' — '));
-                return { dados, labels };
-            }
+    /** Filtra a lista (asc) pelos últimos `rangeDays` dias a partir de hoje. null = tudo. */
+    filterByRange(list, rangeDays) {
+        if (!rangeDays || !Number.isFinite(rangeDays) || list.length === 0) return list;
+        const cutoff = Date.now() - rangeDays * 86400000;
+        return list.filter((r) => r.timestamp >= cutoff);
+    }
 
-            const flat = this.flattenLocalChronological();
-            return {
-                dados: flat.map((r) => r.peso),
-                labels: flat.map((r) => recordPeriodLabel(r).replace(' · ', ' — ')),
-            };
+    /**
+     * Série para o gráfico (cronologia crescente: esquerda = passado).
+     * @param {number|null} rangeDays Mostra só os últimos N dias (null = tudo).
+     */
+    async getAllRecords(rangeDays = null) {
+        let list = [];
+        try {
+            list = await this.getRecordsCached();
         } catch (error) {
             console.error('Erro ao buscar registros:', error);
-
-            const flat = this.flattenLocalChronological();
-            return {
-                dados: flat.map((r) => r.peso),
-                labels: flat.map((r) => recordPeriodLabel(r).replace(' · ', ' — ')),
-            };
         }
+
+        const filtered = this.filterByRange(list, rangeDays);
+        const axis = filtered.map((r) => recordAxisLabels(r));
+        return {
+            dados: filtered.map((r) => r.peso),
+            labels: axis.map((a) => a.short),
+            fullLabels: axis.map((a) => a.full),
+            timestamps: filtered.map((r) => r.timestamp),
+        };
     }
 
     // Obter registros de um mês específico
@@ -452,136 +574,116 @@ class WeightDatabase {
     }
 
     /**
-     * Peso mais recente (maior timestamp) e total de registos — fonte única para estatísticas.
+     * Estatísticas para o painel: peso atual, total, variações (Δ último, 7 e 30 dias)
+     * e mín/máx/média. Tudo derivado do cache cronológico (asc).
      */
-    async getLatestPesoAndCount() {
+    async getStats() {
+        let list = [];
         try {
-            if (this.useFirebase && this.currentUserId) {
-                const firebaseRecords = await firebaseManager.getWeightRecords();
-                const total = firebaseRecords.length;
-                if (total === 0) {
-                    return { latestPeso: null, total: 0 };
-                }
-                let best = firebaseRecords[0];
-                let bestMs = toMillis(best.timestamp);
-                if (bestMs == null) bestMs = -Infinity;
-                for (let i = 1; i < firebaseRecords.length; i++) {
-                    const r = firebaseRecords[i];
-                    let ms = toMillis(r.timestamp);
-                    if (ms == null) ms = -Infinity;
-                    let cur = toMillis(best.timestamp);
-                    if (cur == null) cur = -Infinity;
-                    if (ms > cur) {
-                        best = r;
-                    }
-                }
-                const p = best.peso;
-                const latestPeso = typeof p === 'number' ? p : parseFloat(String(p).replace(',', '.'));
-                return {
-                    latestPeso: Number.isFinite(latestPeso) ? latestPeso : null,
-                    total,
-                };
-            }
-
-            const flat = this.flattenLocalChronological();
-            const total = flat.length;
-            if (total === 0) {
-                return { latestPeso: null, total: 0 };
-            }
-            let best = flat[0];
-            let bestMs = toMillis(best.timestamp);
-            if (bestMs == null) bestMs = -Infinity;
-            for (let i = 1; i < flat.length; i++) {
-                const r = flat[i];
-                let ms = toMillis(r.timestamp);
-                if (ms == null) ms = -Infinity;
-                let cur = toMillis(best.timestamp);
-                if (cur == null) cur = -Infinity;
-                if (ms > cur) {
-                    best = r;
-                }
-            }
-            const p = best.peso;
-            const latestPeso = typeof p === 'number' ? p : parseFloat(String(p).replace(',', '.'));
-            return {
-                latestPeso: Number.isFinite(latestPeso) ? latestPeso : null,
-                total,
-            };
+            list = await this.getRecordsCached();
         } catch (error) {
-            console.error('Erro em getLatestPesoAndCount:', error);
-            return { latestPeso: null, total: 0 };
+            console.error('Erro em getStats:', error);
         }
+
+        const total = list.length;
+        const empty = {
+            total: 0, latestPeso: null, delta: null,
+            delta7: null, delta30: null, min: null, max: null, avg: null,
+        };
+        if (total === 0) return empty;
+
+        const num = (p) => (typeof p === 'number' ? p : parseFloat(String(p).replace(',', '.')));
+        const pesos = list.map((r) => num(r.peso)).filter(Number.isFinite);
+        if (pesos.length === 0) return { ...empty, total };
+
+        const latest = list[total - 1];
+        const latestPeso = num(latest.peso);
+        const prevPeso = total >= 2 ? num(list[total - 2].peso) : null;
+        const delta = prevPeso != null && Number.isFinite(prevPeso) ? latestPeso - prevPeso : null;
+
+        // Peso do registro mais próximo (não posterior) a N dias antes do último.
+        const pesoDaysAgo = (days) => {
+            const target = latest.timestamp - days * 86400000;
+            let chosen = null;
+            for (const r of list) {
+                if (r.timestamp <= target) chosen = r;
+                else break;
+            }
+            return chosen ? num(chosen.peso) : null;
+        };
+        const p7 = pesoDaysAgo(7);
+        const p30 = pesoDaysAgo(30);
+
+        return {
+            total,
+            latestPeso: Number.isFinite(latestPeso) ? latestPeso : null,
+            delta,
+            delta7: p7 != null ? latestPeso - p7 : null,
+            delta30: p30 != null ? latestPeso - p30 : null,
+            min: Math.min(...pesos),
+            max: Math.max(...pesos),
+            avg: pesos.reduce((a, b) => a + b, 0) / pesos.length,
+        };
     }
 
     /**
-     * Lista dos registos mais recentes (para corrigir peso). Limite por defeito 20.
+     * Lista dos registros mais recentes (para corrigir/excluir). Limite padrão de 20.
      */
     async getRecordsForEditList(limit = 20) {
-        if (this.useFirebase && this.currentUserId) {
-            const records = await firebaseManager.getWeightRecords();
-            return [...records]
-                .sort((a, b) => (toMillis(b.timestamp) || 0) - (toMillis(a.timestamp) || 0))
-                .slice(0, limit)
-                .map((r) => ({
-                    id: r.id,
-                    localId: null,
-                    mes: r.mes,
-                    semana: r.semana,
-                    peso: r.peso,
-                    timestamp: r.timestamp,
-                    data: r.data,
-                    label: recordPeriodLabel(r),
-                }));
-        }
-
-        this.migrateLocalIds();
-        const flat = [];
-        for (const mes of sortMesKeys(Object.keys(this.registros))) {
-            const semanas = this.registros[mes];
-            if (!semanas) continue;
-            for (const semana of Object.keys(semanas).sort((a, b) => Number(a) - Number(b))) {
-                for (const registro of semanas[semana]) {
-                    flat.push({
-                        peso: registro.peso,
-                        mes,
-                        semana,
-                        timestamp: registro.timestamp || 0,
-                        id: registro.id || null,
-                        localId: registro.localId || null,
-                        data: registro.data,
-                        label: recordPeriodLabel({
-                            mes,
-                            semana,
-                            timestamp: registro.timestamp,
-                        }),
-                    });
-                }
-            }
-        }
-        flat.sort((a, b) => (toMillis(b.timestamp) || 0) - (toMillis(a.timestamp) || 0));
-        return flat.slice(0, limit);
+        const list = await this.getRecordsCached();
+        return [...list]
+            .sort((a, b) => b.timestamp - a.timestamp)
+            .slice(0, limit)
+            .map((r) => ({
+                id: r.id,
+                localId: r.localId,
+                mes: r.mes,
+                semana: r.semana,
+                peso: r.peso,
+                timestamp: r.timestamp,
+                data: r.data,
+                label: recordPeriodLabel(r),
+            }));
     }
 
     /**
-     * Atualiza o peso de um registo (Firebase por id, local por localId).
+     * Atualiza um registo (Firebase por id, local por localId).
+     * Se `timestamp` for indicado, recalcula mês/semana/data a partir dessa data —
+     * no localStorage o registo é movido para o mês/semana correto.
      */
-    async updateWeightRecord({ id, localId, peso }) {
+    async updateWeightRecord({ id, localId, peso, timestamp }) {
         const n = Number(peso);
-        if (!n || n <= 0) {
-            throw new Error('Peso inválido');
+        if (!Number.isFinite(n) || n <= 0 || n > 500) {
+            throw new Error('Peso inválido (use um número entre 0 e 500 kg).');
         }
 
         if (!this.currentUserId && this.useFirebase) {
             throw new Error('Usuário não autenticado');
         }
 
-        const dataStr = new Date().toLocaleDateString('pt-BR');
+        const hasNewDate =
+            typeof timestamp === 'number' && Number.isFinite(timestamp) && timestamp > 0;
+        const period = hasNewDate ? derivePeriodFromMillis(timestamp) : null;
+        const dataStr = period ? period.data : new Date().toLocaleDateString('pt-BR');
+
+        if (period) {
+            const collision = await this.hasRecordOnDay(timestamp, {
+                excludeId: id || null,
+                excludeLocalId: localId || null,
+            });
+            if (collision) {
+                throw new Error('Já existe um registro nesse dia. Escolha outra data.');
+            }
+        }
 
         if (this.useFirebase && this.currentUserId && id) {
-            await firebaseManager.updateWeightRecord(id, {
-                peso: n,
-                data: dataStr,
-            });
+            const fields = { peso: n, data: dataStr };
+            if (period) {
+                fields.mes = period.mes;
+                fields.semana = period.semana;
+                fields.timestamp = timestamp;
+            }
+            await firebaseManager.updateWeightRecord(id, fields);
             await this.loadData();
             return;
         }
@@ -589,17 +691,71 @@ class WeightDatabase {
         this.migrateLocalIds();
         for (const mes of Object.keys(this.registros)) {
             for (const sem of Object.keys(this.registros[mes])) {
-                for (const reg of this.registros[mes][sem]) {
-                    if (reg.localId === localId) {
-                        reg.peso = n;
-                        reg.data = dataStr;
-                        this.saveToLocalStorage();
-                        return;
+                const arr = this.registros[mes][sem];
+                const idx = arr.findIndex((reg) => reg.localId === localId);
+                if (idx === -1) continue;
+
+                const reg = arr[idx];
+                reg.peso = n;
+                reg.data = dataStr;
+
+                if (period) {
+                    reg.timestamp = timestamp;
+                    // Mover para o novo mês/semana se a data mudou de período
+                    if (period.mes !== mes || period.semana !== sem) {
+                        arr.splice(idx, 1);
+                        if (arr.length === 0) delete this.registros[mes][sem];
+                        if (Object.keys(this.registros[mes]).length === 0) {
+                            delete this.registros[mes];
+                        }
+                        if (!this.registros[period.mes]) this.registros[period.mes] = {};
+                        if (!this.registros[period.mes][period.semana]) {
+                            this.registros[period.mes][period.semana] = [];
+                        }
+                        this.registros[period.mes][period.semana].push(reg);
                     }
                 }
+
+                this.saveToLocalStorage();
+                this.invalidateCache();
+                return;
             }
         }
-        throw new Error('Registo não encontrado');
+        throw new Error('Registro não encontrado');
+    }
+
+    /**
+     * Apaga um único registro (Firebase por id, local por localId).
+     */
+    async deleteWeightRecord({ id, localId }) {
+        if (!this.currentUserId && this.useFirebase) {
+            throw new Error('Usuário não autenticado');
+        }
+
+        if (this.useFirebase && this.currentUserId && id) {
+            await firebaseManager.deleteWeightRecord(id);
+            await this.loadData();
+            return;
+        }
+
+        this.migrateLocalIds();
+        for (const mes of Object.keys(this.registros)) {
+            for (const sem of Object.keys(this.registros[mes])) {
+                const arr = this.registros[mes][sem];
+                const idx = arr.findIndex((reg) => reg.localId === localId);
+                if (idx === -1) continue;
+
+                arr.splice(idx, 1);
+                if (arr.length === 0) delete this.registros[mes][sem];
+                if (Object.keys(this.registros[mes]).length === 0) {
+                    delete this.registros[mes];
+                }
+                this.saveToLocalStorage();
+                this.invalidateCache();
+                return;
+            }
+        }
+        throw new Error('Registro não encontrado');
     }
 
     // Limpar todos os dados
@@ -613,13 +769,15 @@ class WeightDatabase {
                 }
                 console.log('Dados limpos do Firebase');
             }
-            
+
             this.registros = {};
             this.removeLocalStorageKey();
         } catch (error) {
             console.error('Erro ao limpar dados:', error);
             this.registros = {};
             this.removeLocalStorageKey();
+        } finally {
+            this.invalidateCache();
         }
     }
 
@@ -642,10 +800,10 @@ class WeightDatabase {
         if (typeof TextEncoder !== 'undefined') {
             const bytes = new TextEncoder().encode(dataString).length;
             if (bytes > MAX_IMPORT_JSON_BYTES) {
-                throw new Error('Ficheiro demasiado grande (máximo 2 MB).');
+                throw new Error('Arquivo muito grande (máximo 2 MB).');
             }
         } else if (dataString.length > MAX_IMPORT_JSON_BYTES) {
-            throw new Error('Ficheiro demasiado grande (máximo 2 MB).');
+            throw new Error('Arquivo muito grande (máximo 2 MB).');
         }
 
         let parsed;
@@ -684,6 +842,7 @@ class WeightDatabase {
                 this.saveToLocalStorage();
             }
 
+            this.invalidateCache();
             return true;
         } catch (error) {
             console.error('Erro ao importar dados:', error);

@@ -6,18 +6,18 @@ Aplicação web mobile-first para acompanhamento de peso familiar: gráficos (Ch
 
 ### Configuração Firebase
 
-Opcionalmente podes usar `src/config/firebase-config.js` (copiado do `firebase-config.example.js`) para não versionar a config no repositório. O `index.html` inclui um **fallback** com a configuração pública do projeto para o site funcionar em deploy mesmo quando esse ficheiro não existe (o ficheiro local, se existir, tem prioridade). A chave web do Firebase é pública por desenho; a segurança vem das **Firestore Rules**, **Auth** e restrições de domínio/API na Google Cloud.
+Opcionalmente você pode usar `src/config/firebase-config.js` (copiado do `firebase-config.example.js`) para não versionar a config no repositório. O `index.html` inclui um **fallback** com a configuração pública do projeto para o site funcionar em deploy mesmo quando esse arquivo não existe (o arquivo local, se existir, tem prioridade). A chave web do Firebase é pública por design; a segurança vem das **Firestore Rules**, **Auth** e restrições de domínio/API na Google Cloud.
 
-## Como correr
+## Como rodar
 
 ```bash
 npm install
 cp src/config/firebase-config.example.js src/config/firebase-config.js
-# Edita firebase-config.js com os dados do teu projeto Firebase
+# Edite firebase-config.js com os dados do seu projeto Firebase
 npm run dev
 ```
 
-Abre [http://localhost:3000](http://localhost:3000). Mais detalhes em [QUICK_START.md](QUICK_START.md).
+Abra [http://localhost:3000](http://localhost:3000).
 
 ## Estrutura (web)
 

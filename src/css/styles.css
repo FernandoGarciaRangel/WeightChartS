@@ -23,6 +23,26 @@ input[type="number"] {
     -webkit-text-size-adjust: 100%;
 }
 
+/* Seletor de data nativo (modal de edição) acompanha o tema */
+.theme-date-input {
+    color-scheme: dark;
+}
+
+html[data-theme='light'] .theme-date-input {
+    color-scheme: light;
+}
+
+/* Botão de adicionar desativado (já há registo hoje) */
+#btnAdicionar:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+#btnAdicionar:disabled:hover {
+    background-color: #f97316;
+}
+
 input {
     color: #fafafa;
     background-color: rgba(24, 24, 27, 0.8);

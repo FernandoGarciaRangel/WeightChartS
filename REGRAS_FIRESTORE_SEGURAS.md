@@ -7,31 +7,44 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Valida o peso no servidor (não confiar só no cliente)
+    function pesoValido(p) {
+      return p is number && p > 0 && p <= 500;
+    }
+
     // Coleção de registros de peso
     match /weightRecords/{document} {
-      // Permitir leitura apenas se o usuário estiver autenticado
-      // E o documento pertencer ao usuário
-      allow read: if request.auth != null && 
+      // Leitura: autenticado E dono do documento
+      allow read: if request.auth != null &&
                    request.auth.uid == resource.data.userId;
-      
-      // Permitir escrita apenas se o usuário estiver autenticado
-      // E o documento pertencer ao usuário (para updates)
-      allow update: if request.auth != null && 
+
+      // Criação: autenticado, userId = UID e peso válido
+      allow create: if request.auth != null &&
+                     request.auth.uid == request.resource.data.userId &&
+                     pesoValido(request.resource.data.peso);
+
+      // Atualização: dono, sem trocar o userId e peso válido
+      allow update: if request.auth != null &&
+                     request.auth.uid == resource.data.userId &&
+                     request.resource.data.userId == resource.data.userId &&
+                     pesoValido(request.resource.data.peso);
+
+      // Exclusão: autenticado E dono do documento
+      allow delete: if request.auth != null &&
                      request.auth.uid == resource.data.userId;
-      
-      // Permitir criação apenas se o usuário estiver autenticado
-      // E o userId no documento for igual ao UID do usuário
-      allow create: if request.auth != null && 
-                     request.auth.uid == request.resource.data.userId;
-      
-      // Permitir exclusão apenas se o usuário estiver autenticado
-      // E o documento pertencer ao usuário
-      allow delete: if request.auth != null && 
-                     request.auth.uid == resource.data.userId;
+    }
+
+    // Preferências do utilizador (ex.: tema) — só o próprio acede
+    match /users/{userId} {
+      allow read, write: if request.auth != null &&
+                          request.auth.uid == userId;
     }
   }
 }
 ```
+
+> **Nota:** sem a regra `users/{userId}`, a gravação/leitura da preferência de tema
+> (`saveUserThemePreference` / `loadUserThemePreference`) é negada por omissão.
 
 ## 🚀 **COMO APLICAR AS REGRAS:**
 

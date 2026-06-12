@@ -27,6 +27,13 @@ class WeightApp {
         this.currentTheme = 'dark';
         /** @type {{ id: string|null, localId: string|null, label: string }|null} */
         this.editTarget = null;
+        this.registrosModalOpen = false;
+        /** @type {((result: boolean) => void)|null} */
+        this.confirmResolver = null;
+        /** Meta de peso atual (null = sem meta). */
+        this.metaPeso = null;
+        /** Filtro de período do gráfico em dias (null = tudo). */
+        this.currentRange = null;
         this.init();
     }
 
@@ -119,7 +126,40 @@ class WeightApp {
     updatePeriodoResumo() {
         const el = document.getElementById('periodoResumo');
         if (!el) return;
-        el.textContent = `Usa a data de hoje — ${this.formatPeriodLabel(new Date())}.`;
+        el.textContent = `Usando a data de hoje — ${this.formatPeriodLabel(new Date())}.`;
+    }
+
+    /**
+     * Reflete na UI se o dia de hoje já tem registo: desativa o botão/campo de
+     * adicionar e ajusta o texto. Evita falhar só no clique (regra "1 por dia").
+     */
+    async refreshTodayState() {
+        const btn = document.getElementById('btnAdicionar');
+        const input = document.getElementById('peso');
+        const resumo = document.getElementById('periodoResumo');
+
+        let already = false;
+        if (this.isAuthenticated) {
+            try {
+                already = await weightDB.hasRecordOnDay(Date.now());
+            } catch {
+                already = false;
+            }
+        }
+
+        if (btn) {
+            btn.disabled = already;
+            btn.textContent = already ? 'Você já registrou hoje' : 'Adicionar registro';
+        }
+        if (input) {
+            input.disabled = already;
+            if (already) input.value = '';
+        }
+        if (resumo) {
+            resumo.textContent = already
+                ? 'Você já tem um registro de hoje. Corrija-o na lista abaixo se precisar.'
+                : `Usando a data de hoje — ${this.formatPeriodLabel(new Date())}.`;
+        }
     }
 
     /**
@@ -148,6 +188,7 @@ class WeightApp {
 
         if (user) {
             await this.loadThemeForUser();
+            await this.loadMetaForUser();
             this.loadInitialData();
             this.hideLandingScreen();
             try {
@@ -216,10 +257,14 @@ class WeightApp {
                 }
                 this.hideAuthScreen();
                 void this.loadThemeForUser();
+                void this.loadMetaForUser();
                 this.loadInitialData();
             } else {
                 console.log('Usuário desautenticado');
                 this.applyTheme('dark');
+                this.metaPeso = null;
+                this.applyMetaToUI();
+                if (this.chart) this.chart.setGoal(null);
                 this.clearData();
                 if (this.shouldSkipLanding()) {
                     this.hideLandingScreen();
@@ -332,22 +377,51 @@ class WeightApp {
             btnLimpar.addEventListener('click', () => this.clearAllData());
         }
 
-        const listaRegistros = document.getElementById('listaRegistros');
-        if (listaRegistros) {
-            listaRegistros.addEventListener('click', (e) => {
-                const btn = e.target.closest('[data-action="editar"]');
-                if (!btn) return;
-                const id = btn.dataset.firebaseId || null;
-                const localId = btn.dataset.localId || null;
-                const label = btn.dataset.label || '';
-                this.openEditModal({ id, localId, label, peso: btn.dataset.peso });
-            });
-        }
+        document.getElementById('btnExportarImagem')?.addEventListener('click', () => this.exportImage());
+
+        // Meta de peso
+        document.getElementById('btnDefinirMeta')?.addEventListener('click', () => this.definirMeta());
+        document.getElementById('btnRemoverMeta')?.addEventListener('click', () => this.removerMeta());
+        document.getElementById('metaInput')?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.definirMeta();
+            }
+        });
+
+        // Filtro de período do gráfico
+        this.setupRangeButtons();
+
+        document.getElementById('listaRegistros')?.addEventListener('click', (e) => this.handleListaClick(e));
+        document.getElementById('listaRegistrosTodos')?.addEventListener('click', (e) => this.handleListaClick(e));
+
+        document.getElementById('btnConfirmarOk')?.addEventListener('click', () => this.resolveConfirm(true));
+        document.getElementById('btnConfirmarCancelar')?.addEventListener('click', () => this.resolveConfirm(false));
+        document.getElementById('modalConfirmar')?.addEventListener('click', (e) => {
+            if (e.target.id === 'modalConfirmar') this.resolveConfirm(false);
+        });
+
+        document.getElementById('btnVerTodos')?.addEventListener('click', () => this.openRegistrosModal());
+        document.getElementById('btnFecharRegistros')?.addEventListener('click', () => this.closeRegistrosModal());
+        document.getElementById('modalRegistros')?.addEventListener('click', (e) => {
+            if (e.target.id === 'modalRegistros') this.closeRegistrosModal();
+        });
 
         document.getElementById('btnCancelarEditarPeso')?.addEventListener('click', () => this.closeEditModal());
         document.getElementById('btnGuardarEditarPeso')?.addEventListener('click', () => this.saveEditPeso());
         document.getElementById('modalEditarPeso')?.addEventListener('click', (e) => {
             if (e.target.id === 'modalEditarPeso') this.closeEditModal();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Escape') return;
+            if (this.confirmResolver) {
+                this.resolveConfirm(false);
+            } else if (this.editTarget) {
+                this.closeEditModal();
+            } else if (this.registrosModalOpen) {
+                this.closeRegistrosModal();
+            }
         });
 
         const editarPesoValor = document.getElementById('editarPesoValor');
@@ -574,63 +648,180 @@ class WeightApp {
         this.updateChart();
         this.updateStatistics();
         this.refreshListaRegistros();
+        void this.refreshTodayState();
+    }
+
+    /** Quantos registros aparecem direto na home (o resto fica em "Ver todos"). */
+    static HOME_REGISTROS_LIMIT = 3;
+
+    /** Cria o <li> de um registro (info + ações corrigir/excluir). Reutilizado na home e no modal. */
+    createRegistroLi(r) {
+        const li = document.createElement('li');
+        li.className =
+            'flex flex-wrap items-center justify-between gap-2 py-2.5 px-3 bg-zinc-950/40';
+
+        const info = document.createElement('span');
+        info.className = 'text-sm text-zinc-300';
+        const pesoFmt = typeof r.peso === 'number' ? r.peso.toFixed(1) : String(r.peso);
+        info.textContent = `${r.label} · `;
+        const strong = document.createElement('strong');
+        strong.className = 'text-orange-400';
+        strong.textContent = `${pesoFmt} kg`;
+        info.appendChild(strong);
+
+        const actions = document.createElement('div');
+        actions.className = 'flex shrink-0 gap-2';
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className =
+            'shrink-0 rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-200 hover:border-orange-500/50';
+        btn.textContent = 'Corrigir';
+        btn.dataset.action = 'editar';
+        btn.dataset.label = r.label;
+        btn.dataset.peso = String(r.peso);
+        if (r.timestamp != null) btn.dataset.timestamp = String(r.timestamp);
+        if (r.id) btn.dataset.firebaseId = r.id;
+        if (r.localId) btn.dataset.localId = r.localId;
+
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className =
+            'shrink-0 rounded-lg border border-red-900/50 bg-red-950/40 px-3 py-1.5 text-xs font-medium text-red-300 hover:bg-red-950/70';
+        delBtn.textContent = 'Excluir';
+        delBtn.dataset.action = 'excluir';
+        delBtn.dataset.label = r.label;
+        if (r.id) delBtn.dataset.firebaseId = r.id;
+        if (r.localId) delBtn.dataset.localId = r.localId;
+
+        actions.appendChild(btn);
+        actions.appendChild(delBtn);
+        li.appendChild(info);
+        li.appendChild(actions);
+        return li;
+    }
+
+    /** Delega cliques de Corrigir/Excluir (usado pela lista da home e pela do modal). */
+    handleListaClick(e) {
+        const editBtn = e.target.closest('[data-action="editar"]');
+        if (editBtn) {
+            this.openEditModal({
+                id: editBtn.dataset.firebaseId || null,
+                localId: editBtn.dataset.localId || null,
+                label: editBtn.dataset.label || '',
+                peso: editBtn.dataset.peso,
+                timestamp: editBtn.dataset.timestamp,
+            });
+            return;
+        }
+
+        const delBtn = e.target.closest('[data-action="excluir"]');
+        if (delBtn) {
+            this.handleDeleteRecord({
+                id: delBtn.dataset.firebaseId || null,
+                localId: delBtn.dataset.localId || null,
+                label: delBtn.dataset.label || '',
+            });
+        }
+    }
+
+    /**
+     * Confirmação no estilo da app (substitui o confirm() nativo).
+     * @returns {Promise<boolean>} true se confirmado, false se cancelado.
+     */
+    confirmAction({ title = 'Confirmar', message = '', confirmLabel = 'Confirmar' } = {}) {
+        return new Promise((resolve) => {
+            // Se já houver uma confirmação aberta, cancela-a antes de abrir a nova
+            if (this.confirmResolver) this.resolveConfirm(false);
+
+            const modal = document.getElementById('modalConfirmar');
+            const t = document.getElementById('modalConfirmarTitulo');
+            const m = document.getElementById('modalConfirmarMensagem');
+            const ok = document.getElementById('btnConfirmarOk');
+            if (t) t.textContent = title;
+            if (m) m.textContent = message;
+            if (ok) ok.textContent = confirmLabel;
+
+            this.confirmResolver = resolve;
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
+            requestAnimationFrame(() => ok?.focus());
+        });
+    }
+
+    resolveConfirm(result) {
+        const modal = document.getElementById('modalConfirmar');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+        const resolve = this.confirmResolver;
+        this.confirmResolver = null;
+        if (resolve) resolve(result);
+    }
+
+    openRegistrosModal() {
+        const modal = document.getElementById('modalRegistros');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+        this.registrosModalOpen = true;
+    }
+
+    closeRegistrosModal() {
+        const modal = document.getElementById('modalRegistros');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+        this.registrosModalOpen = false;
     }
 
     async refreshListaRegistros() {
         const ul = document.getElementById('listaRegistros');
+        const ulTodos = document.getElementById('listaRegistrosTodos');
         const empty = document.getElementById('listaRegistrosVazia');
+        const btnVerTodos = document.getElementById('btnVerTodos');
         if (!ul) return;
 
         ul.innerHTML = '';
+        if (ulTodos) ulTodos.innerHTML = '';
+        if (btnVerTodos) btnVerTodos.classList.add('hidden');
 
         if (!this.isAuthenticated) {
             if (empty) {
                 empty.classList.remove('hidden');
-                empty.textContent = 'Inicia sessão para ver os registos.';
+                empty.textContent = 'Faça login para ver os registros.';
             }
+            this.closeRegistrosModal();
             return;
         }
 
         try {
-            const rows = await weightDB.getRecordsForEditList(20);
+            const rows = await weightDB.getRecordsForEditList(500);
             if (rows.length === 0) {
                 if (empty) {
                     empty.classList.remove('hidden');
-                    empty.textContent = 'Ainda não há registos.';
+                    empty.textContent = 'Ainda não há registros.';
                 }
+                this.closeRegistrosModal();
                 return;
             }
             if (empty) empty.classList.add('hidden');
 
-            for (const r of rows) {
-                const li = document.createElement('li');
-                li.className =
-                    'flex flex-wrap items-center justify-between gap-2 py-2.5 px-3 bg-zinc-950/40';
+            const limit = WeightApp.HOME_REGISTROS_LIMIT;
+            rows.slice(0, limit).forEach((r) => ul.appendChild(this.createRegistroLi(r)));
 
-                const info = document.createElement('span');
-                info.className = 'text-sm text-zinc-300';
-                const pesoFmt =
-                    typeof r.peso === 'number' ? r.peso.toFixed(1) : String(r.peso);
-                info.textContent = `${r.label} · `;
-                const strong = document.createElement('strong');
-                strong.className = 'text-orange-400';
-                strong.textContent = `${pesoFmt} kg`;
-                info.appendChild(strong);
+            if (ulTodos) {
+                rows.forEach((r) => ulTodos.appendChild(this.createRegistroLi(r)));
+            }
 
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className =
-                    'shrink-0 rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-200 hover:border-orange-500/50';
-                btn.textContent = 'Corrigir';
-                btn.dataset.action = 'editar';
-                btn.dataset.label = r.label;
-                btn.dataset.peso = String(r.peso);
-                if (r.id) btn.dataset.firebaseId = r.id;
-                if (r.localId) btn.dataset.localId = r.localId;
-
-                li.appendChild(info);
-                li.appendChild(btn);
-                ul.appendChild(li);
+            if (btnVerTodos && rows.length > limit) {
+                btnVerTodos.textContent = `Ver todos (${rows.length})`;
+                btnVerTodos.classList.remove('hidden');
             }
         } catch (err) {
             console.error(err);
@@ -641,12 +832,45 @@ class WeightApp {
         }
     }
 
-    openEditModal({ id, localId, label, peso }) {
-        this.editTarget = { id, localId, label };
+    /** Lê um peso aceitando vírgula decimal; retorna número válido (0–500 kg) ou NaN. */
+    parsePeso(raw) {
+        if (raw == null) return NaN;
+        const n = parseFloat(String(raw).trim().replace(',', '.'));
+        if (!Number.isFinite(n) || n <= 0 || n > 500) return NaN;
+        return n;
+    }
+
+    /** Converte ms → "YYYY-MM-DD" no fuso local (para <input type="date">) */
+    msToDateInputValue(ms) {
+        const d = Number.isFinite(ms) ? new Date(ms) : new Date();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    }
+
+    /** Converte "YYYY-MM-DD" → ms ao meio-dia local (evita saltos de dia por fuso) */
+    dateInputValueToMs(value) {
+        if (typeof value !== 'string') return NaN;
+        const m = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!m) return NaN;
+        const date = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12, 0, 0, 0);
+        return date.getTime();
+    }
+
+    openEditModal({ id, localId, label, peso, timestamp }) {
+        const ms = Number(timestamp);
+        const validMs = Number.isFinite(ms) && ms > 0;
+        this.editTarget = { id, localId, label, originalMs: validMs ? ms : null };
         const modal = document.getElementById('modalEditarPeso');
         const ctx = document.getElementById('editarPesoContexto');
         const input = document.getElementById('editarPesoValor');
+        const dataInput = document.getElementById('editarDataValor');
         if (ctx) ctx.textContent = label;
+        if (dataInput) {
+            dataInput.value = this.msToDateInputValue(validMs ? ms : Date.now());
+            dataInput.max = this.msToDateInputValue(Date.now());
+        }
         if (input) {
             input.value = typeof peso === 'string' ? peso : String(peso);
             input.focus();
@@ -670,23 +894,67 @@ class WeightApp {
     async saveEditPeso() {
         if (!this.editTarget) return;
         const input = document.getElementById('editarPesoValor');
-        const novo = parseFloat(input?.value);
-        if (!novo || novo <= 0) {
-            this.showErrorMessage('Indica um peso válido');
+        const dataInput = document.getElementById('editarDataValor');
+        const novo = this.parsePeso(input?.value);
+        if (!Number.isFinite(novo)) {
+            this.showErrorMessage('Informe um peso válido (0 a 500 kg)');
             return;
         }
+
+        // Só envia novo timestamp se a data tiver mudado em relação à original
+        let timestamp;
+        const dataValor = dataInput?.value;
+        if (dataValor) {
+            const ms = this.dateInputValueToMs(dataValor);
+            if (!Number.isFinite(ms)) {
+                this.showErrorMessage('Informe uma data válida');
+                return;
+            }
+            if (ms > Date.now() + 86400000) {
+                this.showErrorMessage('A data não pode ser no futuro');
+                return;
+            }
+            const originalDay = this.editTarget.originalMs != null
+                ? this.msToDateInputValue(this.editTarget.originalMs)
+                : null;
+            if (dataValor !== originalDay) {
+                timestamp = ms;
+            }
+        }
+
         try {
             await weightDB.updateWeightRecord({
                 id: this.editTarget.id,
                 localId: this.editTarget.localId,
                 peso: novo,
+                timestamp,
             });
             this.closeEditModal();
-            this.showSuccessMessage('Peso atualizado.');
+            this.showSuccessMessage('Registro atualizado.');
             await this.updateChart();
             await this.refreshListaRegistros();
+            await this.refreshTodayState();
         } catch (err) {
             this.showErrorMessage(err.message || 'Erro ao atualizar');
+        }
+    }
+
+    async handleDeleteRecord({ id, localId, label }) {
+        const ctx = label ? ` de ${label}` : '';
+        const ok = await this.confirmAction({
+            title: 'Excluir registro',
+            message: `Apagar o registro${ctx}? Esta ação não pode ser desfeita.`,
+            confirmLabel: 'Excluir',
+        });
+        if (!ok) return;
+        try {
+            await weightDB.deleteWeightRecord({ id, localId });
+            this.showSuccessMessage('Registro apagado.');
+            await this.updateChart();
+            await this.refreshListaRegistros();
+            await this.refreshTodayState();
+        } catch (err) {
+            this.showErrorMessage(err.message || 'Erro ao apagar registro');
         }
     }
 
@@ -697,6 +965,7 @@ class WeightApp {
         }
         this.updateStatistics();
         void this.refreshListaRegistros();
+        void this.refreshTodayState();
     }
 
     async addWeightRecord() {
@@ -706,10 +975,10 @@ class WeightApp {
         }
 
         const { mes, semana } = this.getCurrentPeriod();
-        const peso = parseFloat(document.getElementById('peso').value);
+        const peso = this.parsePeso(document.getElementById('peso').value);
 
-        if (!peso || peso <= 0) {
-            this.showErrorMessage('Por favor, insira um peso válido');
+        if (!Number.isFinite(peso)) {
+            this.showErrorMessage('Informe um peso válido (0 a 500 kg)');
             return;
         }
 
@@ -724,8 +993,8 @@ class WeightApp {
             
             // Mostrar feedback
             this.showSuccessMessage('Registro adicionado com sucesso!');
-            this.updatePeriodoResumo();
             await this.refreshListaRegistros();
+            await this.refreshTodayState();
         } catch (error) {
             this.showErrorMessage(error.message);
         }
@@ -738,26 +1007,182 @@ class WeightApp {
         await this.updateStatistics();
     }
 
+    /** "82,5 kg" (vírgula decimal pt-BR). */
+    fmtKg(v) {
+        if (v == null || !Number.isFinite(v)) return '--';
+        return `${v.toFixed(1).replace('.', ',')} kg`;
+    }
+
+    /** Variação com seta: "▼ 0,4 kg" / "▲ 1,2 kg" / "0,0 kg". */
+    fmtDelta(v) {
+        if (v == null || !Number.isFinite(v)) return '–';
+        if (v === 0) return '0,0 kg';
+        const arrow = v < 0 ? '▼' : '▲';
+        return `${arrow} ${Math.abs(v).toFixed(1).replace('.', ',')} kg`;
+    }
+
+    setText(id, text) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
+    }
+
     async updateStatistics() {
         try {
-            const { latestPeso, total } = await weightDB.getLatestPesoAndCount();
+            const s = await weightDB.getStats();
 
-            const pesoAtualEl = document.getElementById('pesoAtual');
-            if (pesoAtualEl) {
-                if (latestPeso != null && Number.isFinite(latestPeso)) {
-                    pesoAtualEl.textContent = `${latestPeso.toFixed(1)} kg`;
-                } else {
-                    pesoAtualEl.textContent = '--';
-                }
-            }
+            this.setText('pesoAtual', this.fmtKg(s.latestPeso));
+            this.setText('totalRegistros', s.total);
+            this.setText('pesoDelta', s.delta != null ? `${this.fmtDelta(s.delta)} vs. anterior` : '');
+            this.setText('stat7', this.fmtDelta(s.delta7));
+            this.setText('stat30', this.fmtDelta(s.delta30));
+            this.setText('statMedia', this.fmtKg(s.avg));
+            this.setText('statMin', this.fmtKg(s.min));
+            this.setText('statMax', this.fmtKg(s.max));
 
-            const totalRegistrosEl = document.getElementById('totalRegistros');
-            if (totalRegistrosEl) {
-                totalRegistrosEl.textContent = total;
-            }
+            this.updateMetaProgress(s.latestPeso);
+            this.toggleEmptyChart(s.total === 0);
         } catch (error) {
             console.error('Erro ao atualizar estatísticas:', error);
         }
+    }
+
+    /** Mostra/esconde a mensagem de gráfico vazio. */
+    toggleEmptyChart(isEmpty) {
+        const el = document.getElementById('graficoVazio');
+        if (el) el.classList.toggle('hidden', !isEmpty);
+    }
+
+    // ----- Meta de peso -----
+
+    metaStorageKey(uid) {
+        return `weightcharts_meta_${uid}`;
+    }
+
+    getMetaFromLocal(uid) {
+        try {
+            const v = parseFloat(localStorage.getItem(this.metaStorageKey(uid)));
+            return Number.isFinite(v) && v > 0 ? v : null;
+        } catch {
+            return null;
+        }
+    }
+
+    setMetaLocal(uid, value) {
+        try {
+            if (value == null) localStorage.removeItem(this.metaStorageKey(uid));
+            else localStorage.setItem(this.metaStorageKey(uid), String(value));
+        } catch {
+            /* ignore */
+        }
+    }
+
+    async loadMetaForUser() {
+        const uid = firebaseManager.getCurrentUserId();
+        if (!uid) return;
+        let meta = await firebaseManager.loadUserGoal();
+        if (meta == null) meta = this.getMetaFromLocal(uid);
+        this.metaPeso = typeof meta === 'number' && meta > 0 ? meta : null;
+        this.applyMetaToUI();
+        if (this.chart) this.chart.setGoal(this.metaPeso);
+    }
+
+    applyMetaToUI() {
+        const input = document.getElementById('metaInput');
+        const btnRemover = document.getElementById('btnRemoverMeta');
+        if (input) input.value = this.metaPeso != null ? String(this.metaPeso).replace('.', ',') : '';
+        if (btnRemover) btnRemover.classList.toggle('hidden', this.metaPeso == null);
+    }
+
+    async definirMeta() {
+        const input = document.getElementById('metaInput');
+        const v = this.parsePeso(input?.value);
+        if (!Number.isFinite(v)) {
+            this.showErrorMessage('Informe uma meta válida (0 a 500 kg)');
+            return;
+        }
+        this.metaPeso = v;
+        const uid = firebaseManager.getCurrentUserId();
+        if (uid) this.setMetaLocal(uid, v);
+        await firebaseManager.saveUserGoal(v);
+        if (this.chart) this.chart.setGoal(v);
+        this.applyMetaToUI();
+        await this.updateStatistics();
+        this.showSuccessMessage('Meta definida.');
+    }
+
+    async removerMeta() {
+        this.metaPeso = null;
+        const uid = firebaseManager.getCurrentUserId();
+        if (uid) this.setMetaLocal(uid, null);
+        await firebaseManager.saveUserGoal(null);
+        if (this.chart) this.chart.setGoal(null);
+        this.applyMetaToUI();
+        await this.updateStatistics();
+        this.showSuccessMessage('Meta removida.');
+    }
+
+    updateMetaProgress(latestPeso) {
+        const el = document.getElementById('metaProgresso');
+        if (!el) return;
+        if (this.metaPeso == null || latestPeso == null || !Number.isFinite(latestPeso)) {
+            el.classList.add('hidden');
+            el.textContent = '';
+            return;
+        }
+        el.classList.remove('hidden');
+        const diff = latestPeso - this.metaPeso;
+        if (Math.abs(diff) < 0.05) {
+            el.textContent = `🎯 Você atingiu a meta de ${this.fmtKg(this.metaPeso)}!`;
+        } else {
+            const faltam = Math.abs(diff).toFixed(1).replace('.', ',');
+            const dir = diff > 0 ? 'acima' : 'abaixo';
+            el.textContent = `Faltam ${faltam} kg para a meta de ${this.fmtKg(this.metaPeso)} (você está ${dir}).`;
+        }
+    }
+
+    // ----- Filtro de período do gráfico -----
+
+    setupRangeButtons() {
+        const container = document.getElementById('filtroPeriodo');
+        if (!container) return;
+        container.addEventListener('click', (e) => {
+            const btn = e.target.closest('.range-btn');
+            if (!btn) return;
+            const r = btn.dataset.range;
+            this.currentRange = r === 'all' ? null : Number(r);
+            this.highlightRange(btn);
+            if (this.chart) this.chart.updateChart(this.currentRange);
+        });
+        const def = container.querySelector('[data-range="all"]');
+        if (def) this.highlightRange(def);
+    }
+
+    highlightRange(activeBtn) {
+        const container = document.getElementById('filtroPeriodo');
+        if (!container) return;
+        container.querySelectorAll('.range-btn').forEach((b) => {
+            const active = b === activeBtn;
+            b.classList.toggle('border-orange-500', active);
+            b.classList.toggle('text-orange-400', active);
+            b.classList.toggle('bg-orange-500/10', active);
+            b.classList.toggle('border-zinc-700', !active);
+            b.classList.toggle('text-zinc-300', !active);
+        });
+    }
+
+    // ----- Exportar gráfico como imagem -----
+
+    exportImage() {
+        if (!this.chart) return;
+        const dataUrl = this.chart.exportAsImage();
+        if (!dataUrl) {
+            this.showErrorMessage('Nada para exportar ainda.');
+            return;
+        }
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = 'peso-grafico.png';
+        a.click();
     }
 
     showSuccessMessage(message) {
@@ -819,6 +1244,7 @@ class WeightApp {
                         this.showSuccessMessage('Dados importados com sucesso!');
                         await this.updateChart();
                         await this.refreshListaRegistros();
+                        await this.refreshTodayState();
                     } catch (error) {
                         const msg =
                             error instanceof Error && error.message
@@ -835,15 +1261,20 @@ class WeightApp {
     }
 
     async clearAllData() {
-        if (confirm('Tem certeza que deseja apagar todos os dados? Esta ação não pode ser desfeita.')) {
-            try {
-                await weightDB.clearAllData();
-                await this.updateChart();
-                await this.refreshListaRegistros();
-                this.showSuccessMessage('Todos os dados foram apagados');
-            } catch (error) {
-                this.showErrorMessage('Erro ao limpar dados: ' + error.message);
-            }
+        const ok = await this.confirmAction({
+            title: 'Apagar todos os dados',
+            message: 'Tem certeza que deseja apagar todos os dados? Esta ação não pode ser desfeita.',
+            confirmLabel: 'Apagar tudo',
+        });
+        if (!ok) return;
+        try {
+            await weightDB.clearAllData();
+            await this.updateChart();
+            await this.refreshListaRegistros();
+            await this.refreshTodayState();
+            this.showSuccessMessage('Todos os dados foram apagados');
+        } catch (error) {
+            this.showErrorMessage('Erro ao limpar dados: ' + error.message);
         }
     }
 }
@@ -852,10 +1283,3 @@ class WeightApp {
 document.addEventListener('DOMContentLoaded', () => {
     window.weightApp = new WeightApp();
 });
-
-// Função global para compatibilidade (será removida depois)
-window.adicionarPeso = function() {
-    if (window.weightApp) {
-        window.weightApp.addWeightRecord();
-    }
-};
