@@ -6,6 +6,10 @@
       "use": "@vercel/static"
     },
     {
+      "src": "sw.js",
+      "use": "@vercel/static"
+    },
+    {
       "src": "src/**/*",
       "use": "@vercel/static"
     }
@@ -14,6 +18,10 @@
     {
       "source": "/",
       "destination": "/index.html"
+    },
+    {
+      "source": "/sw.js",
+      "destination": "/sw.js"
     },
     {
       "source": "/src/(.*)",
