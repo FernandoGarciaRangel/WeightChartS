@@ -79,6 +79,7 @@ Os registros de peso são organizados como `{ [mes]: { [semana]: [ {peso, data, 
 - **Meta de peso** — `users/{uid}.metaPeso` (+ localStorage `weightcharts_meta_{uid}`); desenhada como linha tracejada (2º dataset) via `WeightChart.setGoal()`.
 - **Filtro de período** — `getAllRecords(rangeDays)` filtra os últimos N dias (30/90/365/null=tudo); `WeightChart` guarda o range ativo em `_rangeDays`.
 - **Estatísticas** — `WeightDatabase.getStats()` retorna `latestPeso`, `delta`, `delta7`, `delta30`, `min`, `max`, `avg`, `total`.
+- **Perfil público / Explorar** — opt-in em `users/{uid}.public`. Quando público, espelha `displayName` + um snapshot `evolucao: [{t,p}]` (de `getEvolucaoSnapshot()`) no próprio doc `users/{uid}` — os `weightRecords` continuam privados. A seção "Explorar" lista `users where public==true` (`firebaseManager.listPublicProfiles()`) e renderiza a evolução de cada um num `WeightChart` read-only (`new WeightChart(id, { live:false })` + `renderPoints()`). O snapshot é regravado após cada escrita via `WeightApp.syncPublicProfile()`. As regras do Firestore liberam leitura de `users/{uid}` quando `public==true`.
 
 ### Tema
 

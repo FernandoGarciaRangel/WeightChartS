@@ -18,7 +18,7 @@ function getThemeColors() {
 }
 
 class WeightChart {
-    constructor(canvasId) {
+    constructor(canvasId, { live = true } = {}) {
         this.canvasId = canvasId;
         this.chart = null;
         /** Datas completas (1 por ponto) para o título do tooltip. */
@@ -27,12 +27,31 @@ class WeightChart {
         this._rangeDays = null;
         /** Meta de peso (null = sem meta). */
         this._goal = null;
+        /** false = gráfico read-only (perfil público): não lê os dados do próprio usuário. */
+        this._live = live;
         this.init();
     }
 
     init() {
         this.createChart();
-        this.updateChart();
+        if (this._live) this.updateChart();
+    }
+
+    /**
+     * Renderiza uma série fornecida diretamente (perfil público read-only):
+     * `points` = [{ t: ms, p: peso }] em ordem cronológica.
+     */
+    renderPoints(points) {
+        if (!this.chart) return;
+        const records = (points || [])
+            .filter((pt) => pt && Number.isFinite(pt.t) && Number.isFinite(pt.p))
+            .map((pt) => ({ timestamp: pt.t, peso: pt.p }));
+        const { dados, labels, fullLabels } = weightDB.formatSeries(records);
+        this.chart.data.labels = labels;
+        this._fullLabels = fullLabels;
+        this.chart.data.datasets[0].data = dados;
+        this.syncTheme();
+        this.chart.update();
     }
 
     createChart() {

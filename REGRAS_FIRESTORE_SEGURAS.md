@@ -34,17 +34,22 @@ service cloud.firestore {
                      request.auth.uid == resource.data.userId;
     }
 
-    // Preferências do utilizador (ex.: tema) — só o próprio acede
+    // Perfil do utilizador (tema, meta, perfil público).
+    // O próprio lê/escreve tudo; outros autenticados leem só se o perfil for público.
     match /users/{userId} {
-      allow read, write: if request.auth != null &&
-                          request.auth.uid == userId;
+      allow read: if request.auth != null &&
+                   (request.auth.uid == userId || resource.data.public == true);
+      allow write: if request.auth != null &&
+                    request.auth.uid == userId;
     }
   }
 }
 ```
 
-> **Nota:** sem a regra `users/{userId}`, a gravação/leitura da preferência de tema
-> (`saveUserThemePreference` / `loadUserThemePreference`) é negada por omissão.
+> **Nota:** sem a regra `users/{userId}`, a gravação/leitura de tema, meta e perfil público
+> é negada por omissão. A condição `resource.data.public == true` permite que a seção
+> **Explorar** liste perfis públicos e mostre o gráfico de evolução de outros usuários —
+> os `weightRecords` continuam totalmente privados (só o dono lê).
 
 ## 🚀 **COMO APLICAR AS REGRAS:**
 
