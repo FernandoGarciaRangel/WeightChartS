@@ -454,7 +454,7 @@ class WeightApp {
             });
         }
 
-        // Campo de data do registro (default hoje, sem futuro)
+        // Campo de data do registro — escondido por padrão (default hoje, sem futuro)
         const dataRegistro = document.getElementById('dataRegistro');
         if (dataRegistro) {
             const hoje = this.msToDateInputValue(Date.now());
@@ -462,6 +462,26 @@ class WeightApp {
             dataRegistro.max = hoje;
             dataRegistro.addEventListener('change', () => this.refreshTodayState());
         }
+        document.getElementById('btnOutraData')?.addEventListener('click', () => this.showDateField());
+        document.getElementById('btnDataHoje')?.addEventListener('click', () => {
+            this.resetDateField();
+            void this.refreshTodayState();
+        });
+    }
+
+    /** Revela o seletor de data (registrar em data passada). */
+    showDateField() {
+        document.getElementById('dataRegistroWrapper')?.classList.remove('hidden');
+        document.getElementById('btnOutraData')?.classList.add('hidden');
+        document.getElementById('dataRegistro')?.focus();
+    }
+
+    /** Esconde o seletor de data e volta para hoje. */
+    resetDateField() {
+        const di = document.getElementById('dataRegistro');
+        if (di) di.value = this.msToDateInputValue(Date.now());
+        document.getElementById('dataRegistroWrapper')?.classList.add('hidden');
+        document.getElementById('btnOutraData')?.classList.remove('hidden');
     }
 
     // Configurar eventos de autenticação
@@ -1063,9 +1083,9 @@ class WeightApp {
         try {
             await weightDB.addWeightRecord(peso, ts);
 
-            // Limpar peso e voltar a data para hoje
+            // Limpar peso e voltar o seletor de data para hoje (escondido)
             document.getElementById('peso').value = '';
-            if (dataInput) dataInput.value = this.msToDateInputValue(Date.now());
+            this.resetDateField();
 
             // Atualizar gráfico
             await this.updateChart();

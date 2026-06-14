@@ -276,8 +276,14 @@
                            class="w-full rounded-xl border border-zinc-600 bg-zinc-900/80 p-4 text-center text-lg text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
                            placeholder="0,0">
                 </div>
-                <div>
-                    <label for="dataRegistro" class="block text-sm font-medium text-zinc-400 mb-2">Data</label>
+                <button type="button" id="btnOutraData" class="text-sm font-medium text-orange-400 hover:text-orange-300 transition-colors">
+                    Registrar em outra data
+                </button>
+                <div id="dataRegistroWrapper" class="hidden">
+                    <div class="flex items-center justify-between mb-2">
+                        <label for="dataRegistro" class="block text-sm font-medium text-zinc-400">Data do registro</label>
+                        <button type="button" id="btnDataHoje" class="text-xs text-zinc-400 hover:text-zinc-200 transition-colors">Voltar para hoje</button>
+                    </div>
                     <input type="date" id="dataRegistro"
                            class="theme-date-input w-full rounded-xl border border-zinc-600 bg-zinc-900/80 p-3 text-center text-base text-zinc-100 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20">
                 </div>
