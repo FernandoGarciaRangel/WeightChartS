@@ -28,12 +28,10 @@ function derivePeriodFromMillis(ms) {
     };
 }
 
-/** Limite de tamanho do arquivo JSON (bytes UTF-8) — evita DoS por memória */
-const MAX_IMPORT_JSON_BYTES = 2 * 1024 * 1024;
+/** Limite de tamanho do arquivo de importação (bytes UTF-8) — evita DoS por memória */
+const MAX_IMPORT_BYTES = 2 * 1024 * 1024;
 /** Máximo de registros numa importação */
 const MAX_IMPORT_RECORDS = 5000;
-/** Máximo de registros numa única semana */
-const MAX_RECORDS_PER_WEEK = 500;
 
 function normalizeImportPeso(raw) {
     if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
@@ -44,90 +42,65 @@ function normalizeImportPeso(raw) {
     return NaN;
 }
 
-function normalizeImportTimestamp(ts) {
-    const now = Date.now();
-    if (typeof ts === 'number' && Number.isFinite(ts) && ts > 0 && ts <= now + 86400000) {
-        return Math.round(ts);
-    }
-    return now;
+/** "DD/MM/AAAA" → ms ao meio-dia local; null se inválida. */
+function parseDataBrToMs(s) {
+    const m = String(s).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (!m) return null;
+    const dia = Number(m[1]);
+    const mes = Number(m[2]);
+    const ano = Number(m[3]);
+    const d = new Date(ano, mes - 1, dia, 12, 0, 0, 0);
+    if (d.getDate() !== dia || d.getMonth() !== mes - 1 || d.getFullYear() !== ano) return null;
+    return d.getTime();
 }
 
 /**
- * Valida e normaliza o JSON exportado pela app; rejeita estruturas estranhas ou excessivas.
- * @param {unknown} raw
+ * Lê o CSV exportado pela app (`data;peso`, com DD/MM/AAAA e vírgula decimal) e
+ * devolve a estrutura `{ [mes]: { [semana]: [registro] } }`. Deduplica por dia.
  */
-function validateAndNormalizeImportPayload(raw) {
-    if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
-        throw new Error('O arquivo deve ser um objeto JSON (meses → semanas → registros).');
+function parseImportCsv(text) {
+    const linhas = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    if (linhas.length === 0) {
+        throw new Error('Arquivo CSV vazio.');
     }
+    // Pula o cabeçalho se a 1ª linha for "data;peso"
+    let start = 0;
+    if (/data/i.test(linhas[0]) && /peso/i.test(linhas[0])) start = 1;
 
-    const topKeys = Object.keys(raw);
-    if (topKeys.length > 24) {
-        throw new Error('Chaves demais no nível superior.');
+    const porDia = new Map();
+    let total = 0;
+
+    for (let i = start; i < linhas.length; i++) {
+        total += 1;
+        if (total > MAX_IMPORT_RECORDS) {
+            throw new Error(`Máximo de ${MAX_IMPORT_RECORDS} registros por importação.`);
+        }
+
+        const partes = linhas[i].split(/[;,]/);
+        if (partes.length < 2) {
+            throw new Error(`Linha inválida: "${linhas[i]}". Use o formato data;peso.`);
+        }
+
+        const ts = parseDataBrToMs(partes[0]);
+        if (ts == null) {
+            throw new Error(`Data inválida: "${partes[0]}". Use DD/MM/AAAA.`);
+        }
+        const peso = normalizeImportPeso(partes[1]);
+        if (!Number.isFinite(peso) || peso <= 0 || peso > 500) {
+            throw new Error('Peso inválido numa linha (use um número entre 0 e 500 kg).');
+        }
+
+        const { mes, semana, data } = derivePeriodFromMillis(ts);
+        // Última ocorrência do dia vence (1 registro por dia)
+        porDia.set(dayKeyFromTs(ts), { mes, semana, registro: { peso, data, timestamp: ts } });
     }
 
     const out = {};
-    let total = 0;
-
-    for (const mes of topKeys) {
-        if (!MONTH_ORDER.includes(mes)) {
-            throw new Error(`Mês inválido: "${mes}". Use as chaves em português (ex.: janeiro, fevereiro).`);
-        }
-        const semObj = raw[mes];
-        if (semObj === null || typeof semObj !== 'object' || Array.isArray(semObj)) {
-            throw new Error(`Estrutura inválida para o mês "${mes}".`);
-        }
-
-        out[mes] = {};
-        const semKeys = Object.keys(semObj);
-
-        for (const semana of semKeys) {
-            const semStr = String(semana);
-            if (!/^[1-4]$/.test(semStr)) {
-                throw new Error(`Semana inválida: "${semana}" (esperado 1 a 4).`);
-            }
-            const arr = semObj[semana];
-            if (!Array.isArray(arr)) {
-                throw new Error(`A semana ${semStr} de "${mes}" deve ser uma lista de registros.`);
-            }
-            if (arr.length > MAX_RECORDS_PER_WEEK) {
-                throw new Error(`Registros demais numa semana (máx. ${MAX_RECORDS_PER_WEEK}).`);
-            }
-
-            out[mes][semStr] = [];
-
-            for (const reg of arr) {
-                if (reg === null || typeof reg !== 'object' || Array.isArray(reg)) {
-                    throw new Error('Cada registro deve ser um objeto com peso.');
-                }
-                total += 1;
-                if (total > MAX_IMPORT_RECORDS) {
-                    throw new Error(`Máximo de ${MAX_IMPORT_RECORDS} registros por importação.`);
-                }
-
-                const peso = normalizeImportPeso(reg.peso);
-                if (!Number.isFinite(peso) || peso <= 0 || peso > 500) {
-                    throw new Error('Peso inválido num registro (use um número entre 0 e 500 kg).');
-                }
-
-                const rec = {
-                    peso,
-                    data:
-                        typeof reg.data === 'string' && reg.data.length > 0
-                            ? reg.data.slice(0, 64)
-                            : new Date().toLocaleDateString('pt-BR'),
-                    timestamp: normalizeImportTimestamp(reg.timestamp),
-                };
-
-                if (typeof reg.localId === 'string' && reg.localId.length <= 128) {
-                    rec.localId = reg.localId;
-                }
-
-                out[mes][semStr].push(rec);
-            }
-        }
+    for (const { mes, semana, registro } of porDia.values()) {
+        if (!out[mes]) out[mes] = {};
+        if (!out[mes][semana]) out[mes][semana] = [];
+        out[mes][semana].push(registro);
     }
-
     return out;
 }
 
@@ -814,12 +787,25 @@ class WeightDatabase {
         localStorage.removeItem(`registrosPeso_${userId}`);
     }
 
-    // Exportar dados
-    exportData() {
-        return JSON.stringify(this.registros, null, 2);
+    // Exportar dados como CSV (data;peso) — amigável para Excel/Sheets pt-BR
+    async exportData() {
+        let list = [];
+        try {
+            list = await this.getRecordsCached();
+        } catch (error) {
+            console.error('Erro ao exportar:', error);
+        }
+        const linhas = ['data;peso'];
+        for (const r of list) {
+            const dataBr = new Date(r.timestamp).toLocaleDateString('pt-BR');
+            const peso = Number(r.peso);
+            const pesoStr = Number.isFinite(peso) ? peso.toFixed(1).replace('.', ',') : '';
+            linhas.push(`${dataBr};${pesoStr}`);
+        }
+        return linhas.join('\r\n');
     }
 
-    // Importar dados
+    // Importar dados (CSV: data;peso)
     async importData(dataString) {
         if (typeof dataString !== 'string') {
             throw new Error('Conteúdo de importação inválido.');
@@ -827,21 +813,14 @@ class WeightDatabase {
 
         if (typeof TextEncoder !== 'undefined') {
             const bytes = new TextEncoder().encode(dataString).length;
-            if (bytes > MAX_IMPORT_JSON_BYTES) {
+            if (bytes > MAX_IMPORT_BYTES) {
                 throw new Error('Arquivo muito grande (máximo 2 MB).');
             }
-        } else if (dataString.length > MAX_IMPORT_JSON_BYTES) {
+        } else if (dataString.length > MAX_IMPORT_BYTES) {
             throw new Error('Arquivo muito grande (máximo 2 MB).');
         }
 
-        let parsed;
-        try {
-            parsed = JSON.parse(dataString);
-        } catch {
-            throw new Error('JSON inválido ou corrompido.');
-        }
-
-        const data = validateAndNormalizeImportPayload(parsed);
+        const data = parseImportCsv(dataString);
 
         try {
             if (this.useFirebase) {

@@ -1482,24 +1482,25 @@ class WeightApp {
         }, 3000);
     }
 
-    // Métodos para funcionalidades futuras
-    exportData() {
-        const data = weightDB.exportData();
-        const blob = new Blob([data], { type: 'application/json' });
+    // Exporta os registros como CSV (abre no Excel/Sheets)
+    async exportData() {
+        const csv = await weightDB.exportData();
+        // BOM para o Excel reconhecer UTF-8
+        const blob = new Blob(['﻿', csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
-        
+
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'peso-dados.json';
+        a.download = 'peso-dados.csv';
         a.click();
-        
+
         URL.revokeObjectURL(url);
     }
 
     async importData() {
         const input = document.createElement('input');
         input.type = 'file';
-        input.accept = '.json';
+        input.accept = '.csv,text/csv';
         
         input.onchange = async (e) => {
             const file = e.target.files[0];
