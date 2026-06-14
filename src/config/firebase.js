@@ -544,10 +544,12 @@ class FirebaseManager {
             snapshot.forEach((docSnap) => {
                 if (docSnap.id === this.currentUser.uid) return;
                 const d = docSnap.data();
+                const meta = d.metaPeso;
                 out.push({
                     uid: docSnap.id,
                     displayName: d.displayName || 'Usuário',
                     evolucao: Array.isArray(d.evolucao) ? d.evolucao : [],
+                    meta: typeof meta === 'number' && Number.isFinite(meta) && meta > 0 ? meta : null,
                 });
             });
             return out.slice(0, max);

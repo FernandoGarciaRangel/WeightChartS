@@ -39,9 +39,9 @@ class WeightChart {
 
     /**
      * Renderiza uma série fornecida diretamente (perfil público read-only):
-     * `points` = [{ t: ms, p: peso }] em ordem cronológica.
+     * `points` = [{ t: ms, p: peso }] em ordem cronológica; `goal` = meta opcional.
      */
-    renderPoints(points) {
+    renderPoints(points, goal = null) {
         if (!this.chart) return;
         const records = (points || [])
             .filter((pt) => pt && Number.isFinite(pt.t) && Number.isFinite(pt.p))
@@ -50,6 +50,8 @@ class WeightChart {
         this.chart.data.labels = labels;
         this._fullLabels = fullLabels;
         this.chart.data.datasets[0].data = dados;
+        this._goal = typeof goal === 'number' && Number.isFinite(goal) && goal > 0 ? goal : null;
+        this.applyGoalDataset(dados.length);
         this.syncTheme();
         this.chart.update();
     }

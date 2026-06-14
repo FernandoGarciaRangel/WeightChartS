@@ -1391,7 +1391,7 @@ class WeightApp {
         if (!this.profileChart) {
             this.profileChart = new WeightChart('graficoPerfil', { live: false });
         }
-        this.profileChart.renderPoints(pts);
+        this.profileChart.renderPoints(pts, perfil.meta);
     }
 
     showSuccessMessage(message) {
