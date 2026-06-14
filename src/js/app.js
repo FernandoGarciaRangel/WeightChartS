@@ -1055,6 +1055,14 @@ class WeightApp {
         return `${arrow} ${Math.abs(v).toFixed(1).replace('.', ',')} kg`;
     }
 
+    /** Quanto falta para a meta (valor absoluto). "–" sem meta, "🎯" se já no alvo. */
+    fmtMetaFalta(latestPeso) {
+        if (this.metaPeso == null || latestPeso == null || !Number.isFinite(latestPeso)) return '–';
+        const diff = Math.abs(latestPeso - this.metaPeso);
+        if (diff < 0.05) return '🎯';
+        return `${diff.toFixed(1).replace('.', ',')} kg`;
+    }
+
     setText(id, text) {
         const el = document.getElementById(id);
         if (el) el.textContent = text;
@@ -1072,6 +1080,7 @@ class WeightApp {
             this.setText('statMedia', this.fmtKg(s.avg));
             this.setText('statMin', this.fmtKg(s.min));
             this.setText('statMax', this.fmtKg(s.max));
+            this.setText('statMeta', this.fmtMetaFalta(s.latestPeso));
 
             this.updateMetaProgress(s.latestPeso);
             this.toggleEmptyChart(s.total === 0);
