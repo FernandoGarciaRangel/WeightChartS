@@ -34,6 +34,10 @@ class WeightApp {
         this.metaPeso = null;
         /** Filtro de período do gráfico em dias (null = tudo). */
         this.currentRange = null;
+        /** Se o perfil do usuário está público. */
+        this.isProfilePublic = false;
+        /** Instância read-only do gráfico na tela Explorar. */
+        this.profileChart = null;
         this.init();
     }
 
@@ -189,6 +193,7 @@ class WeightApp {
         if (user) {
             await this.loadThemeForUser();
             await this.loadMetaForUser();
+            await this.loadProfileForUser();
             this.loadInitialData();
             this.hideLandingScreen();
             try {
@@ -258,6 +263,7 @@ class WeightApp {
                 this.hideAuthScreen();
                 void this.loadThemeForUser();
                 void this.loadMetaForUser();
+                void this.loadProfileForUser();
                 this.loadInitialData();
             } else {
                 console.log('Usuário desautenticado');
@@ -265,6 +271,9 @@ class WeightApp {
                 this.metaPeso = null;
                 this.applyMetaToUI();
                 if (this.chart) this.chart.setGoal(null);
+                this.isProfilePublic = false;
+                this.closeExplorar();
+                this.updateProfileCardVisibility();
                 this.clearData();
                 if (this.shouldSkipLanding()) {
                     this.hideLandingScreen();
@@ -392,6 +401,19 @@ class WeightApp {
         // Filtro de período do gráfico
         this.setupRangeButtons();
 
+        // Perfil público / Explorar
+        document.getElementById('btnTogglePublico')?.addEventListener('click', () => this.toggleProfilePublic());
+        document.getElementById('btnExplorar')?.addEventListener('click', () => this.openExplorar());
+        document.getElementById('btnFecharExplorar')?.addEventListener('click', () => this.closeExplorar());
+        document.getElementById('btnVoltarExplorar')?.addEventListener('click', () => this.showExplorarLista());
+        document.getElementById('modalExplorar')?.addEventListener('click', (e) => {
+            if (e.target.id === 'modalExplorar') this.closeExplorar();
+        });
+        document.getElementById('explorarPerfis')?.addEventListener('click', (e) => {
+            const li = e.target.closest('[data-uid]');
+            if (li) this.showProfileDetail(li.dataset.uid);
+        });
+
         document.getElementById('listaRegistros')?.addEventListener('click', (e) => this.handleListaClick(e));
         document.getElementById('listaRegistrosTodos')?.addEventListener('click', (e) => this.handleListaClick(e));
 
@@ -421,6 +443,8 @@ class WeightApp {
                 this.closeEditModal();
             } else if (this.registrosModalOpen) {
                 this.closeRegistrosModal();
+            } else if (this.explorarModalOpen) {
+                this.closeExplorar();
             }
         });
 
@@ -934,6 +958,7 @@ class WeightApp {
             await this.updateChart();
             await this.refreshListaRegistros();
             await this.refreshTodayState();
+            void this.syncPublicProfile();
         } catch (err) {
             this.showErrorMessage(err.message || 'Erro ao atualizar');
         }
@@ -953,6 +978,7 @@ class WeightApp {
             await this.updateChart();
             await this.refreshListaRegistros();
             await this.refreshTodayState();
+            void this.syncPublicProfile();
         } catch (err) {
             this.showErrorMessage(err.message || 'Erro ao apagar registro');
         }
@@ -995,6 +1021,7 @@ class WeightApp {
             this.showSuccessMessage('Registro adicionado com sucesso!');
             await this.refreshListaRegistros();
             await this.refreshTodayState();
+            void this.syncPublicProfile();
         } catch (error) {
             this.showErrorMessage(error.message);
         }
@@ -1185,6 +1212,181 @@ class WeightApp {
         a.click();
     }
 
+    // ----- Perfil público -----
+
+    /** Mostra o card de perfil público só quando autenticado e com Firebase disponível. */
+    updateProfileCardVisibility() {
+        const card = document.getElementById('cardPerfilPublico');
+        const visible = this.isAuthenticated && firebaseManager.isAvailable();
+        if (card) card.classList.toggle('hidden', !visible);
+    }
+
+    async loadProfileForUser() {
+        this.updateProfileCardVisibility();
+        if (!firebaseManager.isAvailable()) {
+            this.isProfilePublic = false;
+            this.applyProfileToggleUI(false);
+            return;
+        }
+        this.isProfilePublic = await firebaseManager.loadProfileVisibility();
+        this.applyProfileToggleUI(this.isProfilePublic);
+    }
+
+    applyProfileToggleUI(isPublic) {
+        const btn = document.getElementById('btnTogglePublico');
+        const knob = document.getElementById('togglePublicoKnob');
+        const estado = document.getElementById('perfilPublicoEstado');
+        if (btn) {
+            btn.setAttribute('aria-checked', isPublic ? 'true' : 'false');
+            btn.classList.toggle('bg-orange-500', isPublic);
+            btn.classList.toggle('border-orange-500', isPublic);
+            btn.classList.toggle('bg-zinc-700', !isPublic);
+            btn.classList.toggle('border-zinc-600', !isPublic);
+        }
+        if (knob) {
+            knob.classList.toggle('translate-x-6', isPublic);
+            knob.classList.toggle('translate-x-1', !isPublic);
+        }
+        if (estado) {
+            estado.textContent = isPublic
+                ? 'Seu perfil está público — outros veem sua evolução.'
+                : 'Seu perfil está privado.';
+        }
+    }
+
+    async toggleProfilePublic() {
+        if (!firebaseManager.isAvailable()) {
+            this.showErrorMessage('Recurso disponível apenas conectado à conta.');
+            return;
+        }
+        const novo = !this.isProfilePublic;
+        if (novo) {
+            const ok = await this.confirmAction({
+                title: 'Tornar perfil público',
+                message:
+                    'Seu gráfico de evolução de peso ficará visível para outros usuários do app. Deseja continuar?',
+                confirmLabel: 'Tornar público',
+            });
+            if (!ok) return;
+        }
+        try {
+            const displayName = firebaseManager.getCurrentUserDisplayName();
+            const evolucao = novo ? await weightDB.getEvolucaoSnapshot() : [];
+            await firebaseManager.setProfilePublic(novo, displayName, evolucao);
+            this.isProfilePublic = novo;
+            this.applyProfileToggleUI(novo);
+            this.showSuccessMessage(novo ? 'Perfil público ativado.' : 'Perfil voltou a ser privado.');
+        } catch {
+            this.showErrorMessage('Não foi possível atualizar o perfil.');
+        }
+    }
+
+    /** Regrava o snapshot público após alterar registros (silencioso). */
+    async syncPublicProfile() {
+        if (!this.isProfilePublic || !firebaseManager.isAvailable()) return;
+        try {
+            const displayName = firebaseManager.getCurrentUserDisplayName();
+            const evolucao = await weightDB.getEvolucaoSnapshot();
+            await firebaseManager.updatePublicEvolucao(displayName, evolucao);
+        } catch {
+            /* sync de fundo — ignora falhas */
+        }
+    }
+
+    openExplorar() {
+        const modal = document.getElementById('modalExplorar');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+        this.explorarModalOpen = true;
+        this.showExplorarLista();
+        void this.loadPublicProfiles();
+    }
+
+    closeExplorar() {
+        const modal = document.getElementById('modalExplorar');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+        this.explorarModalOpen = false;
+        this.destroyProfileChart();
+    }
+
+    destroyProfileChart() {
+        if (this.profileChart) {
+            this.profileChart.destroy();
+            this.profileChart = null;
+        }
+    }
+
+    showExplorarLista() {
+        document.getElementById('explorarLista')?.classList.remove('hidden');
+        document.getElementById('explorarDetalhe')?.classList.add('hidden');
+        this.destroyProfileChart();
+    }
+
+    async loadPublicProfiles() {
+        const ul = document.getElementById('explorarPerfis');
+        const vazio = document.getElementById('explorarVazio');
+        if (!ul) return;
+        ul.innerHTML = '';
+
+        let perfis = [];
+        try {
+            perfis = await firebaseManager.listPublicProfiles();
+        } catch {
+            perfis = [];
+        }
+        this._publicProfiles = perfis;
+
+        if (perfis.length === 0) {
+            vazio?.classList.remove('hidden');
+            return;
+        }
+        vazio?.classList.add('hidden');
+
+        for (const p of perfis) {
+            const li = document.createElement('li');
+            li.className =
+                'flex items-center justify-between gap-2 py-3 px-3 cursor-pointer hover:bg-zinc-950/40';
+            li.dataset.uid = p.uid;
+
+            const nome = document.createElement('span');
+            nome.className = 'text-sm font-medium text-zinc-200';
+            nome.textContent = p.displayName;
+
+            const meta = document.createElement('span');
+            meta.className = 'text-xs text-zinc-500';
+            meta.textContent = `${p.evolucao.length} registro(s) →`;
+
+            li.appendChild(nome);
+            li.appendChild(meta);
+            ul.appendChild(li);
+        }
+    }
+
+    showProfileDetail(uid) {
+        const perfil = (this._publicProfiles || []).find((p) => p.uid === uid);
+        if (!perfil) return;
+
+        document.getElementById('explorarLista')?.classList.add('hidden');
+        document.getElementById('explorarDetalhe')?.classList.remove('hidden');
+        const nome = document.getElementById('explorarPerfilNome');
+        if (nome) nome.textContent = perfil.displayName;
+
+        const pts = Array.isArray(perfil.evolucao) ? perfil.evolucao : [];
+        const vazio = document.getElementById('graficoPerfilVazio');
+        if (vazio) vazio.classList.toggle('hidden', pts.length > 0);
+
+        // Cria a instância read-only só depois que o canvas está visível (tamanho correto).
+        if (!this.profileChart) {
+            this.profileChart = new WeightChart('graficoPerfil', { live: false });
+        }
+        this.profileChart.renderPoints(pts);
+    }
+
     showSuccessMessage(message) {
         this.showMessage(message, 'success');
     }
@@ -1245,6 +1447,7 @@ class WeightApp {
                         await this.updateChart();
                         await this.refreshListaRegistros();
                         await this.refreshTodayState();
+                        void this.syncPublicProfile();
                     } catch (error) {
                         const msg =
                             error instanceof Error && error.message
@@ -1272,6 +1475,7 @@ class WeightApp {
             await this.updateChart();
             await this.refreshListaRegistros();
             await this.refreshTodayState();
+            void this.syncPublicProfile();
             this.showSuccessMessage('Todos os dados foram apagados');
         } catch (error) {
             this.showErrorMessage('Erro ao limpar dados: ' + error.message);

@@ -473,6 +473,90 @@ class FirebaseManager {
         return null;
     }
 
+    // ----- Perfil público (users/{uid}) -----
+
+    /** Lê se o perfil do usuário atual está público. */
+    async loadProfileVisibility() {
+        if (!this.isAvailable() || !this.currentUser) return false;
+        try {
+            const docRef = window.firebaseSDK.doc(this.db, 'users', this.currentUser.uid);
+            const snap = await window.firebaseSDK.getDoc(docRef);
+            if (snap.exists()) return snap.data().public === true;
+        } catch (e) {
+            console.warn('Não foi possível ler visibilidade do perfil:', e);
+        }
+        return false;
+    }
+
+    /**
+     * Define o perfil como público/privado. Quando público, grava nome + snapshot da evolução.
+     * Quando privado, limpa o snapshot por privacidade.
+     */
+    async setProfilePublic(isPublic, displayName, evolucao) {
+        if (!this.isAvailable() || !this.currentUser) return;
+        try {
+            const docRef = window.firebaseSDK.doc(this.db, 'users', this.currentUser.uid);
+            await window.firebaseSDK.setDoc(
+                docRef,
+                {
+                    public: isPublic === true,
+                    displayName: isPublic ? String(displayName || 'Usuário') : null,
+                    evolucao: isPublic ? evolucao || [] : [],
+                    evolucaoUpdatedAt: window.firebaseSDK.serverTimestamp(),
+                },
+                { merge: true },
+            );
+        } catch (e) {
+            console.warn('Não foi possível atualizar a visibilidade do perfil:', e);
+            throw e;
+        }
+    }
+
+    /** Regrava o snapshot da evolução (e o nome) — usado após alterar registros se já público. */
+    async updatePublicEvolucao(displayName, evolucao) {
+        if (!this.isAvailable() || !this.currentUser) return;
+        try {
+            const docRef = window.firebaseSDK.doc(this.db, 'users', this.currentUser.uid);
+            await window.firebaseSDK.setDoc(
+                docRef,
+                {
+                    displayName: String(displayName || 'Usuário'),
+                    evolucao: evolucao || [],
+                    evolucaoUpdatedAt: window.firebaseSDK.serverTimestamp(),
+                },
+                { merge: true },
+            );
+        } catch (e) {
+            console.warn('Não foi possível atualizar a evolução pública:', e);
+        }
+    }
+
+    /** Lista perfis públicos (exclui o próprio). Retorna [{ uid, displayName, evolucao }]. */
+    async listPublicProfiles(max = 100) {
+        if (!this.isAvailable() || !this.currentUser) return [];
+        try {
+            const q = window.firebaseSDK.query(
+                window.firebaseSDK.collection(this.db, 'users'),
+                window.firebaseSDK.where('public', '==', true),
+            );
+            const snapshot = await window.firebaseSDK.getDocs(q);
+            const out = [];
+            snapshot.forEach((docSnap) => {
+                if (docSnap.id === this.currentUser.uid) return;
+                const d = docSnap.data();
+                out.push({
+                    uid: docSnap.id,
+                    displayName: d.displayName || 'Usuário',
+                    evolucao: Array.isArray(d.evolucao) ? d.evolucao : [],
+                });
+            });
+            return out.slice(0, max);
+        } catch (e) {
+            console.warn('Não foi possível listar perfis públicos:', e);
+            return [];
+        }
+    }
+
     // Limpar listener quando não for mais necessário
     cleanup() {
         if (this.authStateListener) {

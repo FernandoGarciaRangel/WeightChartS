@@ -547,6 +547,21 @@ class WeightDatabase {
     }
 
     /**
+     * Formata uma lista de registros `{ timestamp, peso }` (asc) na série do gráfico:
+     * `{ dados, labels, fullLabels, timestamps }`. Reutilizado pelo gráfico próprio e
+     * pelo gráfico read-only de perfis públicos.
+     */
+    formatSeries(records) {
+        const axis = records.map((r) => recordAxisLabels(r));
+        return {
+            dados: records.map((r) => r.peso),
+            labels: axis.map((a) => a.short),
+            fullLabels: axis.map((a) => a.full),
+            timestamps: records.map((r) => r.timestamp),
+        };
+    }
+
+    /**
      * Série para o gráfico (cronologia crescente: esquerda = passado).
      * @param {number|null} rangeDays Mostra só os últimos N dias (null = tudo).
      */
@@ -557,15 +572,22 @@ class WeightDatabase {
         } catch (error) {
             console.error('Erro ao buscar registros:', error);
         }
+        return this.formatSeries(this.filterByRange(list, rangeDays));
+    }
 
-        const filtered = this.filterByRange(list, rangeDays);
-        const axis = filtered.map((r) => recordAxisLabels(r));
-        return {
-            dados: filtered.map((r) => r.peso),
-            labels: axis.map((a) => a.short),
-            fullLabels: axis.map((a) => a.full),
-            timestamps: filtered.map((r) => r.timestamp),
-        };
+    /**
+     * Snapshot compacto da evolução para o perfil público: `[{ t: ms, p: peso }]` (asc).
+     * Limita aos últimos pontos para não estourar o tamanho do doc.
+     */
+    async getEvolucaoSnapshot(maxPoints = 1000) {
+        let list = [];
+        try {
+            list = await this.getRecordsCached();
+        } catch (error) {
+            console.error('Erro ao montar snapshot:', error);
+        }
+        const trimmed = list.length > maxPoints ? list.slice(list.length - maxPoints) : list;
+        return trimmed.map((r) => ({ t: r.timestamp, p: r.peso }));
     }
 
     // Obter registros de um mês específico
