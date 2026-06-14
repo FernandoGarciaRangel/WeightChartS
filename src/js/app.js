@@ -645,18 +645,25 @@ class WeightApp {
         }
     }
 
+    /** Validação simples de formato de email (cliente). */
+    isValidEmail(email) {
+        return typeof email === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    }
+
     // Manipular redefinição de senha
     async handleResetPassword() {
         const email = document.getElementById('resetEmail').value.trim();
 
-        if (!email) {
-            this.showErrorMessage('Por favor, digite seu email');
+        if (!this.isValidEmail(email)) {
+            this.showErrorMessage('Informe um email válido');
             return;
         }
 
         try {
             await firebaseManager.resetPassword(email);
-            this.showSuccessMessage('Email de redefinição enviado! Verifique sua caixa de entrada');
+            this.showSuccessMessage(
+                'Se houver uma conta com esse email, enviamos um link de redefinição. Verifique também a caixa de spam.',
+            );
             this.showForm('login');
         } catch (error) {
             this.showErrorMessage(error.message);
