@@ -70,7 +70,8 @@ Os registros de peso são organizados como `{ [mes]: { [semana]: [ {peso, data, 
 
 ### Regras de negócio
 
-- **Um registro por dia** — `addWeightRecord` e a edição de data em `updateWeightRecord` recusam se já houver registro no mesmo dia de calendário (fuso local). A chave do dia vem de `dayKeyFromTs()`; a verificação é `hasRecordOnDay()`. A UI também reflete isso de forma proativa: `WeightApp.refreshTodayState()` desativa o botão "Adicionar" quando hoje já tem registro.
+- **Um registro por dia** — `addWeightRecord(peso, timestamp)` e a edição de data em `updateWeightRecord` recusam se já houver registro no mesmo dia de calendário (fuso local). A chave do dia vem de `dayKeyFromTs()`; a verificação é `hasRecordOnDay()`. A UI reflete isso de forma proativa: `WeightApp.refreshTodayState()` desativa o botão "Adicionar" quando o **dia selecionado** (campo `#dataRegistro`) já tem registro.
+- **Registrar em data passada** — o formulário tem um seletor de data (default hoje, `max` = hoje); `addWeightRecord` recebe o `timestamp` (meio-dia local via `dateInputValueToMs`) e o `WeightDatabase` deriva `mes`/`semana`/`data` com `derivePeriodFromMillis`. `WeightApp` tem um guard de reentrância (`_addingRecord`) contra duplo-clique.
 - **Editar data** — ao editar, se o timestamp muda de dia, `derivePeriodFromMillis()` recalcula `mes`/`semana`/`data`; no localStorage o registro é **movido** entre `registros[mes][semana]` (limpando meses/semanas vazios).
 - **Excluir** — `deleteWeightRecord({ id, localId })` apaga um registro (Firebase por `id`, local por `localId`).
 - Conversão de datas usa o **meio-dia local** (`dateInputValueToMs` em `app.js`) para evitar saltos de dia por fuso horário.

@@ -458,8 +458,8 @@ class WeightDatabase {
         });
     }
 
-    // Adicionar novo registro de peso
-    async addWeightRecord(mes, semana, peso) {
+    // Adicionar novo registro de peso (timestamp opcional → permite registrar em data passada)
+    async addWeightRecord(peso, timestamp = Date.now()) {
         if (!Number.isFinite(peso) || peso <= 0 || peso > 500) {
             throw new Error('Peso inválido (use um número entre 0 e 500 kg).');
         }
@@ -468,15 +468,21 @@ class WeightDatabase {
             throw new Error('Usuário não autenticado');
         }
 
-        const now = Date.now();
-        if (await this.hasRecordOnDay(now)) {
-            throw new Error('Já existe um registro para hoje. Corrija o registro de hoje em vez de criar outro.');
+        const ts = Number.isFinite(timestamp) && timestamp > 0 ? timestamp : Date.now();
+        if (await this.hasRecordOnDay(ts)) {
+            const isHoje = dayKeyFromTs(ts) === dayKeyFromTs(Date.now());
+            throw new Error(
+                isHoje
+                    ? 'Já existe um registro para hoje. Corrija o registro de hoje em vez de criar outro.'
+                    : 'Já existe um registro nesse dia. Escolha outra data.',
+            );
         }
 
+        const { mes, semana, data } = derivePeriodFromMillis(ts);
         const registro = {
-            peso: peso,
-            data: new Date().toLocaleDateString('pt-BR'),
-            timestamp: now,
+            peso,
+            data,
+            timestamp: ts,
             localId: this.newLocalId(),
         };
 

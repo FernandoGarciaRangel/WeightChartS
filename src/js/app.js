@@ -6,16 +6,6 @@ import { weightDB } from './database.js';
 import { WeightChart } from './chart.js';
 import { firebaseManager } from '../config/firebase.js';
 
-const MONTH_KEYS = [
-    'janeiro', 'fevereiro', 'marco', 'abril', 'maio', 'junho',
-    'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
-];
-
-const MONTH_LABELS_PT = [
-    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
-];
-
 const SKIP_LANDING_KEY = 'weightcharts_skip_landing';
 
 class WeightApp {
@@ -115,57 +105,51 @@ class WeightApp {
         void this.bootstrapAuthUI();
     }
 
-    /** Mês e semana a partir da data de hoje (chave + valor da semana 1–4) */
-    getCurrentPeriod() {
-        const d = new Date();
-        const mes = MONTH_KEYS[d.getMonth()];
-        const semana = String(Math.min(4, Math.max(1, Math.ceil(d.getDate() / 7))));
-        return { mes, semana };
-    }
-
-    /** Texto legível para o período automático */
-    formatPeriodLabel(date = new Date()) {
-        const semana = Math.min(4, Math.max(1, Math.ceil(date.getDate() / 7)));
-        return `${MONTH_LABELS_PT[date.getMonth()]} de ${date.getFullYear()} · Semana ${semana}`;
-    }
-
-    /** Atualiza o texto que explica onde o registo será guardado */
+    /** Texto inicial do resumo (antes de autenticar). */
     updatePeriodoResumo() {
         const el = document.getElementById('periodoResumo');
         if (!el) return;
-        el.textContent = `Usando a data de hoje — ${this.formatPeriodLabel(new Date())}.`;
+        el.textContent = 'Informe o peso e escolha a data do registro.';
     }
 
     /**
-     * Reflete na UI se o dia de hoje já tem registo: desativa o botão/campo de
+     * Reflete na UI se o dia SELECIONADO já tem registro: desativa o botão de
      * adicionar e ajusta o texto. Evita falhar só no clique (regra "1 por dia").
      */
     async refreshTodayState() {
         const btn = document.getElementById('btnAdicionar');
-        const input = document.getElementById('peso');
+        const pesoInput = document.getElementById('peso');
         const resumo = document.getElementById('periodoResumo');
+        const dataInput = document.getElementById('dataRegistro');
+
+        const ms = this.dateInputValueToMs(dataInput?.value);
+        const selMs = Number.isFinite(ms) ? ms : Date.now();
+        const isHoje = this.msToDateInputValue(selMs) === this.msToDateInputValue(Date.now());
 
         let already = false;
         if (this.isAuthenticated) {
             try {
-                already = await weightDB.hasRecordOnDay(Date.now());
+                already = await weightDB.hasRecordOnDay(selMs);
             } catch {
                 already = false;
             }
         }
 
+        if (pesoInput) pesoInput.disabled = false;
         if (btn) {
             btn.disabled = already;
-            btn.textContent = already ? 'Você já registrou hoje' : 'Adicionar registro';
-        }
-        if (input) {
-            input.disabled = already;
-            if (already) input.value = '';
+            btn.textContent = already ? 'Esse dia já tem registro' : 'Adicionar registro';
         }
         if (resumo) {
-            resumo.textContent = already
-                ? 'Você já tem um registro de hoje. Corrija-o na lista abaixo se precisar.'
-                : `Usando a data de hoje — ${this.formatPeriodLabel(new Date())}.`;
+            if (already) {
+                resumo.textContent = isHoje
+                    ? 'Você já tem um registro de hoje. Corrija na lista ou escolha outra data.'
+                    : 'Esse dia já tem um registro. Corrija na lista ou escolha outra data.';
+            } else {
+                resumo.textContent = isHoje
+                    ? 'Registrando com a data de hoje.'
+                    : `Registrando em ${new Date(selMs).toLocaleDateString('pt-BR')}.`;
+            }
         }
     }
 
@@ -468,6 +452,15 @@ class WeightApp {
                     this.addWeightRecord();
                 }
             });
+        }
+
+        // Campo de data do registro (default hoje, sem futuro)
+        const dataRegistro = document.getElementById('dataRegistro');
+        if (dataRegistro) {
+            const hoje = this.msToDateInputValue(Date.now());
+            dataRegistro.value = hoje;
+            dataRegistro.max = hoje;
+            dataRegistro.addEventListener('change', () => this.refreshTodayState());
         }
     }
 
@@ -1045,20 +1038,34 @@ class WeightApp {
             return;
         }
 
-        const { mes, semana } = this.getCurrentPeriod();
         const peso = this.parsePeso(document.getElementById('peso').value);
-
         if (!Number.isFinite(peso)) {
             this.showErrorMessage('Informe um peso válido (0 a 500 kg)');
             return;
         }
 
+        // Data do registro: campo selecionado (default hoje), sem futuro
+        const dataInput = document.getElementById('dataRegistro');
+        let ts = Date.now();
+        if (dataInput?.value) {
+            ts = this.dateInputValueToMs(dataInput.value);
+            if (!Number.isFinite(ts)) {
+                this.showErrorMessage('Informe uma data válida');
+                return;
+            }
+            if (ts > Date.now() + 86400000) {
+                this.showErrorMessage('A data não pode ser no futuro');
+                return;
+            }
+        }
+
         this._addingRecord = true;
         try {
-            await weightDB.addWeightRecord(mes, semana, peso);
+            await weightDB.addWeightRecord(peso, ts);
 
-            // Limpar campo de peso
+            // Limpar peso e voltar a data para hoje
             document.getElementById('peso').value = '';
+            if (dataInput) dataInput.value = this.msToDateInputValue(Date.now());
 
             // Atualizar gráfico
             await this.updateChart();
