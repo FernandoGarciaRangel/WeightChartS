@@ -28,8 +28,11 @@ class WeightApp {
         /** @type {{ id: string|null, localId: string|null, label: string }|null} */
         this.editTarget = null;
         this.registrosModalOpen = false;
+        this.explorarModalOpen = false;
         /** @type {((result: boolean) => void)|null} */
         this.confirmResolver = null;
+        /** Evita registros duplicados por duplo-clique (reentrância). */
+        this._addingRecord = false;
         /** Meta de peso atual (null = sem meta). */
         this.metaPeso = null;
         /** Filtro de período do gráfico em dias (null = tudo). */
@@ -436,16 +439,14 @@ class WeightApp {
         });
 
         document.addEventListener('keydown', (e) => {
-            if (e.key !== 'Escape') return;
-            if (this.confirmResolver) {
-                this.resolveConfirm(false);
-            } else if (this.editTarget) {
-                this.closeEditModal();
-            } else if (this.registrosModalOpen) {
-                this.closeRegistrosModal();
-            } else if (this.explorarModalOpen) {
-                this.closeExplorar();
+            if (e.key === 'Escape') {
+                if (this.confirmResolver) this.resolveConfirm(false);
+                else if (this.editTarget) this.closeEditModal();
+                else if (this.registrosModalOpen) this.closeRegistrosModal();
+                else if (this.explorarModalOpen) this.closeExplorar();
+                return;
             }
+            if (e.key === 'Tab') this.trapFocus(e);
         });
 
         const editarPesoValor = document.getElementById('editarPesoValor');
@@ -793,6 +794,39 @@ class WeightApp {
         if (resolve) resolve(result);
     }
 
+    /** Modal aberto no topo da pilha (maior z-index primeiro). */
+    getActiveModalEl() {
+        if (this.confirmResolver) return document.getElementById('modalConfirmar');
+        if (this.editTarget) return document.getElementById('modalEditarPeso');
+        if (this.explorarModalOpen) return document.getElementById('modalExplorar');
+        if (this.registrosModalOpen) return document.getElementById('modalRegistros');
+        return null;
+    }
+
+    /** Mantém o Tab circulando apenas dentro do modal ativo (acessibilidade). */
+    trapFocus(e) {
+        const modal = this.getActiveModalEl();
+        if (!modal) return;
+        const focusables = Array.from(
+            modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'),
+        ).filter((el) => !el.disabled && el.getClientRects().length > 0);
+        if (focusables.length === 0) return;
+
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        const active = document.activeElement;
+
+        if (e.shiftKey) {
+            if (active === first || !modal.contains(active)) {
+                e.preventDefault();
+                last.focus();
+            }
+        } else if (active === last || !modal.contains(active)) {
+            e.preventDefault();
+            first.focus();
+        }
+    }
+
     openRegistrosModal() {
         const modal = document.getElementById('modalRegistros');
         if (modal) {
@@ -800,6 +834,7 @@ class WeightApp {
             modal.classList.add('flex');
         }
         this.registrosModalOpen = true;
+        requestAnimationFrame(() => document.getElementById('btnFecharRegistros')?.focus());
     }
 
     closeRegistrosModal() {
@@ -1002,6 +1037,9 @@ class WeightApp {
     }
 
     async addWeightRecord() {
+        // Evita duplo-registro por cliques rápidos (a checagem de 1/dia não é atômica).
+        if (this._addingRecord) return;
+
         if (!this.isAuthenticated) {
             this.showErrorMessage('Usuário não autenticado. Faça login primeiro.');
             return;
@@ -1015,15 +1053,16 @@ class WeightApp {
             return;
         }
 
+        this._addingRecord = true;
         try {
             await weightDB.addWeightRecord(mes, semana, peso);
 
             // Limpar campo de peso
             document.getElementById('peso').value = '';
-            
+
             // Atualizar gráfico
             await this.updateChart();
-            
+
             // Mostrar feedback
             this.showSuccessMessage('Registro adicionado com sucesso!');
             await this.refreshListaRegistros();
@@ -1031,6 +1070,8 @@ class WeightApp {
             void this.syncPublicProfile();
         } catch (error) {
             this.showErrorMessage(error.message);
+        } finally {
+            this._addingRecord = false;
         }
     }
 
@@ -1318,6 +1359,7 @@ class WeightApp {
         this.explorarModalOpen = true;
         this.showExplorarLista();
         void this.loadPublicProfiles();
+        requestAnimationFrame(() => document.getElementById('btnFecharExplorar')?.focus());
     }
 
     closeExplorar() {
