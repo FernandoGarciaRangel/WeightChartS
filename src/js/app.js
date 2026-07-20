@@ -75,6 +75,8 @@ class WeightApp {
 
         window.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme: t } }));
         if (this.chart) this.chart.refreshTheme();
+        // Gráfico read-only do Explorar (instância separada) também acompanha o tema.
+        if (this.profileChart) this.profileChart.refreshTheme();
     }
 
     async loadThemeForUser() {
@@ -248,10 +250,14 @@ class WeightApp {
                     /* ignore */
                 }
                 this.hideAuthScreen();
-                void this.loadThemeForUser();
-                void this.loadMetaForUser();
-                void this.loadProfileForUser();
-                this.loadInitialData();
+                // Sequenciado (tema → meta → perfil) para o snapshot público ver a meta já
+                // carregada e evitar corrida com isProfilePublic ao sincronizar.
+                void (async () => {
+                    await this.loadThemeForUser();
+                    await this.loadMetaForUser();
+                    await this.loadProfileForUser();
+                    this.loadInitialData();
+                })();
             } else {
                 console.log('Usuário desautenticado');
                 this.applyTheme('dark');
@@ -1218,6 +1224,7 @@ class WeightApp {
         if (this.chart) this.chart.setGoal(v);
         this.applyMetaToUI();
         await this.updateStatistics();
+        void this.syncPublicProfile();
         this.showSuccessMessage('Meta definida.');
     }
 
@@ -1229,6 +1236,7 @@ class WeightApp {
         if (this.chart) this.chart.setGoal(null);
         this.applyMetaToUI();
         await this.updateStatistics();
+        void this.syncPublicProfile();
         this.showSuccessMessage('Meta removida.');
     }
 
@@ -1314,6 +1322,9 @@ class WeightApp {
         }
         this.isProfilePublic = await firebaseManager.loadProfileVisibility();
         this.applyProfileToggleUI(this.isProfilePublic);
+        // Auto-cura: se público, regrava o snapshot com o estado atual — corrige drift de
+        // outro dispositivo ou de escritas ocorridas antes de isProfilePublic carregar.
+        if (this.isProfilePublic) void this.syncPublicProfile();
     }
 
     applyProfileToggleUI(isPublic) {
@@ -1355,8 +1366,13 @@ class WeightApp {
         }
         try {
             const displayName = firebaseManager.getCurrentUserDisplayName();
-            const evolucao = novo ? await weightDB.getEvolucaoSnapshot() : [];
-            await firebaseManager.setProfilePublic(novo, displayName, evolucao);
+            const snap = novo ? await weightDB.getEvolucaoSnapshot() : { points: [], total: 0 };
+            await firebaseManager.setProfilePublic(novo, {
+                displayName,
+                evolucao: snap.points,
+                meta: this.metaPeso,
+                count: snap.total,
+            });
             this.isProfilePublic = novo;
             this.applyProfileToggleUI(novo);
             this.showSuccessMessage(novo ? 'Perfil público ativado.' : 'Perfil voltou a ser privado.');
@@ -1370,8 +1386,13 @@ class WeightApp {
         if (!this.isProfilePublic || !firebaseManager.isAvailable()) return;
         try {
             const displayName = firebaseManager.getCurrentUserDisplayName();
-            const evolucao = await weightDB.getEvolucaoSnapshot();
-            await firebaseManager.updatePublicEvolucao(displayName, evolucao);
+            const snap = await weightDB.getEvolucaoSnapshot();
+            await firebaseManager.updatePublicSnapshot({
+                displayName,
+                evolucao: snap.points,
+                meta: this.metaPeso,
+                count: snap.total,
+            });
         } catch {
             /* sync de fundo — ignora falhas */
         }
@@ -1415,14 +1436,21 @@ class WeightApp {
     async loadPublicProfiles() {
         const ul = document.getElementById('explorarPerfis');
         const vazio = document.getElementById('explorarVazio');
+        const erro = document.getElementById('explorarErro');
         if (!ul) return;
         ul.innerHTML = '';
+        vazio?.classList.add('hidden');
+        erro?.classList.add('hidden');
 
-        let perfis = [];
+        let perfis;
         try {
             perfis = await firebaseManager.listPublicProfiles();
-        } catch {
-            perfis = [];
+        } catch (e) {
+            // Distingue falha (ex.: regras não publicadas / offline) de "nenhum perfil".
+            console.warn('Erro ao listar perfis públicos:', e);
+            this._publicProfiles = [];
+            erro?.classList.remove('hidden');
+            return;
         }
         this._publicProfiles = perfis;
 
@@ -1430,7 +1458,6 @@ class WeightApp {
             vazio?.classList.remove('hidden');
             return;
         }
-        vazio?.classList.add('hidden');
 
         for (const p of perfis) {
             const li = document.createElement('li');
@@ -1444,7 +1471,7 @@ class WeightApp {
 
             const meta = document.createElement('span');
             meta.className = 'text-xs text-zinc-500';
-            meta.textContent = `${p.evolucao.length} registro(s) →`;
+            meta.textContent = `${p.count} registro(s) →`;
 
             li.appendChild(nome);
             li.appendChild(meta);
@@ -1452,7 +1479,7 @@ class WeightApp {
         }
     }
 
-    showProfileDetail(uid) {
+    async showProfileDetail(uid) {
         const perfil = (this._publicProfiles || []).find((p) => p.uid === uid);
         if (!perfil) return;
 
@@ -1461,7 +1488,19 @@ class WeightApp {
         const nome = document.getElementById('explorarPerfilNome');
         if (nome) nome.textContent = perfil.displayName;
 
-        const pts = Array.isArray(perfil.evolucao) ? perfil.evolucao : [];
+        // A lista traz só metadados; a série completa é carregada agora, sob demanda.
+        let pts = [];
+        try {
+            pts = await firebaseManager.getPublicSeries(uid);
+        } catch (e) {
+            console.warn('Erro ao carregar a série do perfil:', e);
+            pts = [];
+        }
+
+        // Usuário pode ter voltado à lista ou fechado o modal enquanto carregava.
+        if (!this.explorarModalOpen) return;
+        if (document.getElementById('explorarDetalhe')?.classList.contains('hidden')) return;
+
         const vazio = document.getElementById('graficoPerfilVazio');
         if (vazio) vazio.classList.toggle('hidden', pts.length > 0);
 

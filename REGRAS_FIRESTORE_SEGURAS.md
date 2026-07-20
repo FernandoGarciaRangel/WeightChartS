@@ -34,22 +34,39 @@ service cloud.firestore {
                      request.auth.uid == resource.data.userId;
     }
 
-    // Perfil do utilizador (tema, meta, perfil público).
-    // O próprio lê/escreve tudo; outros autenticados leem só se o perfil for público.
+    // Preferências privadas do utilizador (tema, meta, flag `public`).
+    // Só o próprio dono lê/escreve — nada aqui fica exposto a terceiros.
     match /users/{userId} {
-      allow read: if request.auth != null &&
-                   (request.auth.uid == userId || resource.data.public == true);
-      allow write: if request.auth != null &&
-                    request.auth.uid == userId;
+      allow read, write: if request.auth != null &&
+                          request.auth.uid == userId;
+    }
+
+    // Perfil público — metadados leves para a lista "Explorar" (nome, meta, count).
+    // Qualquer autenticado lê; só o dono escreve o próprio.
+    match /publicProfiles/{uid} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Série de evolução pública {points:[{t,p}]} — carregada só ao abrir o detalhe.
+    match /publicSeries/{uid} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == uid;
     }
   }
 }
 ```
 
-> **Nota:** sem a regra `users/{userId}`, a gravação/leitura de tema, meta e perfil público
-> é negada por omissão. A condição `resource.data.public == true` permite que a seção
-> **Explorar** liste perfis públicos e mostre o gráfico de evolução de outros usuários —
-> os `weightRecords` continuam totalmente privados (só o dono lê).
+> **Nota:** o perfil público agora vive em `publicProfiles/{uid}` (metadados) e
+> `publicSeries/{uid}` (série), **separado** do doc privado `users/{uid}`. Assim, tornar-se
+> público expõe apenas nome, meta e a evolução de peso — o tema e demais preferências
+> continuam privados, e os `weightRecords` continuam totalmente privados (só o dono lê).
+> A seção **Explorar** lista `publicProfiles` (docs pequenos) e busca a série completa de
+> `publicSeries/{uid}` só quando um perfil é aberto.
+>
+> ⚠️ **Estas regras precisam ser (re)publicadas manualmente** no Firebase Console. Sem
+> as regras de `publicProfiles`/`publicSeries`, a lista "Explorar" fica vazia (leitura
+> negada). Perfis que já eram públicos no formato antigo precisam ser reativados no toggle.
 
 ## 🚀 **COMO APLICAR AS REGRAS:**
 

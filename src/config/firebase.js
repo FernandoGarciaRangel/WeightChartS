@@ -473,9 +473,14 @@ class FirebaseManager {
         return null;
     }
 
-    // ----- Perfil público (users/{uid}) -----
+    // ----- Perfil público -----
+    // A visibilidade (flag `public`) fica no doc privado users/{uid} — só o dono lê.
+    // O snapshot público vive em coleções separadas, legíveis por qualquer autenticado:
+    //   publicProfiles/{uid} — metadados leves para a lista "Explorar" (nome, meta, count)
+    //   publicSeries/{uid}   — a série completa {points:[{t,p}]}, carregada só no detalhe
+    // Assim as preferências privadas (tema, meta) nunca ficam num doc legível por outros.
 
-    /** Lê se o perfil do usuário atual está público. */
+    /** Lê se o perfil do usuário atual está público (flag no próprio doc users/{uid}). */
     async loadProfileVisibility() {
         if (!this.isAvailable() || !this.currentUser) return false;
         try {
@@ -489,74 +494,109 @@ class FirebaseManager {
     }
 
     /**
-     * Define o perfil como público/privado. Quando público, grava nome + snapshot da evolução.
-     * Quando privado, limpa o snapshot por privacidade.
+     * Define o perfil como público/privado.
+     * Público: grava metadados + série nas coleções públicas.
+     * Privado: remove ambos os documentos públicos.
+     * Em ambos os casos guarda a flag `public` no doc privado do dono.
      */
-    async setProfilePublic(isPublic, displayName, evolucao) {
+    async setProfilePublic(isPublic, snapshot = {}) {
         if (!this.isAvailable() || !this.currentUser) return;
-        try {
-            const docRef = window.firebaseSDK.doc(this.db, 'users', this.currentUser.uid);
-            await window.firebaseSDK.setDoc(
-                docRef,
-                {
-                    public: isPublic === true,
-                    displayName: isPublic ? String(displayName || 'Usuário') : null,
-                    evolucao: isPublic ? evolucao || [] : [],
-                    evolucaoUpdatedAt: window.firebaseSDK.serverTimestamp(),
-                },
-                { merge: true },
-            );
-        } catch (e) {
-            console.warn('Não foi possível atualizar a visibilidade do perfil:', e);
-            throw e;
+        const uid = this.currentUser.uid;
+        const userRef = window.firebaseSDK.doc(this.db, 'users', uid);
+        await window.firebaseSDK.setDoc(
+            userRef,
+            {
+                public: isPublic === true,
+                preferencesUpdatedAt: window.firebaseSDK.serverTimestamp(),
+            },
+            { merge: true },
+        );
+
+        if (isPublic) {
+            await this._writePublicSnapshot(uid, snapshot);
+        } else {
+            await Promise.all([
+                window.firebaseSDK.deleteDoc(window.firebaseSDK.doc(this.db, 'publicProfiles', uid)).catch(() => {}),
+                window.firebaseSDK.deleteDoc(window.firebaseSDK.doc(this.db, 'publicSeries', uid)).catch(() => {}),
+            ]);
         }
     }
 
-    /** Regrava o snapshot da evolução (e o nome) — usado após alterar registros se já público. */
-    async updatePublicEvolucao(displayName, evolucao) {
+    /** Regrava o snapshot público (nome, meta e série) — usado após alterar registros/meta se já público. */
+    async updatePublicSnapshot(snapshot = {}) {
         if (!this.isAvailable() || !this.currentUser) return;
         try {
-            const docRef = window.firebaseSDK.doc(this.db, 'users', this.currentUser.uid);
-            await window.firebaseSDK.setDoc(
-                docRef,
-                {
-                    displayName: String(displayName || 'Usuário'),
-                    evolucao: evolucao || [],
-                    evolucaoUpdatedAt: window.firebaseSDK.serverTimestamp(),
-                },
-                { merge: true },
-            );
+            await this._writePublicSnapshot(this.currentUser.uid, snapshot);
         } catch (e) {
             console.warn('Não foi possível atualizar a evolução pública:', e);
         }
     }
 
-    /** Lista perfis públicos (exclui o próprio). Retorna [{ uid, displayName, evolucao }]. */
+    /**
+     * @private Grava metadados leves + série completa (substitui os docs por inteiro).
+     * `count` é a contagem real de registros (pode exceder `evolucao.length`, que é limitado).
+     */
+    async _writePublicSnapshot(uid, { displayName, evolucao, meta, count } = {}) {
+        const points = Array.isArray(evolucao) ? evolucao : [];
+        const metaValue =
+            typeof meta === 'number' && Number.isFinite(meta) && meta > 0 ? meta : null;
+        const total =
+            typeof count === 'number' && Number.isFinite(count) && count >= 0
+                ? count
+                : points.length;
+        const now = window.firebaseSDK.serverTimestamp();
+        await Promise.all([
+            window.firebaseSDK.setDoc(window.firebaseSDK.doc(this.db, 'publicProfiles', uid), {
+                uid,
+                displayName: String(displayName || 'Usuário'),
+                meta: metaValue,
+                count: total,
+                updatedAt: now,
+            }),
+            window.firebaseSDK.setDoc(window.firebaseSDK.doc(this.db, 'publicSeries', uid), {
+                points,
+                updatedAt: now,
+            }),
+        ]);
+    }
+
+    /**
+     * Lista perfis públicos (metadados leves, exclui o próprio).
+     * Retorna [{ uid, displayName, count, meta }]. Lança em erro para a UI distinguir
+     * "sem perfis" de "falha ao carregar".
+     */
     async listPublicProfiles(max = 100) {
         if (!this.isAvailable() || !this.currentUser) return [];
-        try {
-            const q = window.firebaseSDK.query(
-                window.firebaseSDK.collection(this.db, 'users'),
-                window.firebaseSDK.where('public', '==', true),
-            );
-            const snapshot = await window.firebaseSDK.getDocs(q);
-            const out = [];
-            snapshot.forEach((docSnap) => {
-                if (docSnap.id === this.currentUser.uid) return;
-                const d = docSnap.data();
-                const meta = d.metaPeso;
-                out.push({
-                    uid: docSnap.id,
-                    displayName: d.displayName || 'Usuário',
-                    evolucao: Array.isArray(d.evolucao) ? d.evolucao : [],
-                    meta: typeof meta === 'number' && Number.isFinite(meta) && meta > 0 ? meta : null,
-                });
+        const q = window.firebaseSDK.query(
+            window.firebaseSDK.collection(this.db, 'publicProfiles'),
+            window.firebaseSDK.limit(max + 1),
+        );
+        const snapshot = await window.firebaseSDK.getDocs(q);
+        const out = [];
+        snapshot.forEach((docSnap) => {
+            if (docSnap.id === this.currentUser.uid) return;
+            const d = docSnap.data();
+            const meta = d.meta;
+            out.push({
+                uid: docSnap.id,
+                displayName: d.displayName || 'Usuário',
+                count: typeof d.count === 'number' && Number.isFinite(d.count) ? d.count : 0,
+                meta: typeof meta === 'number' && Number.isFinite(meta) && meta > 0 ? meta : null,
             });
-            return out.slice(0, max);
-        } catch (e) {
-            console.warn('Não foi possível listar perfis públicos:', e);
-            return [];
+        });
+        return out.slice(0, max);
+    }
+
+    /** Carrega a série completa de um perfil público (só ao abrir o detalhe). */
+    async getPublicSeries(uid) {
+        if (!this.isAvailable() || !uid) return [];
+        const seriesRef = window.firebaseSDK.doc(this.db, 'publicSeries', uid);
+        const snap = await window.firebaseSDK.getDoc(seriesRef);
+        if (snap.exists()) {
+            const pts = snap.data().points;
+            return Array.isArray(pts) ? pts : [];
         }
+        return [];
     }
 
     // Limpar listener quando não for mais necessário

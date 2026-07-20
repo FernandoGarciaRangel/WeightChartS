@@ -57,7 +57,7 @@
     </script>
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getFirestore, collection, addDoc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, doc, query, where, orderBy, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getFirestore, collection, addDoc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, doc, query, where, orderBy, limit, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, updateProfile, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
         const firebaseConfig = window.__firebaseConfig;
@@ -83,6 +83,7 @@
                     query,
                     where,
                     orderBy,
+                    limit,
                     serverTimestamp,
                     onAuthStateChanged,
                     createUserWithEmailAndPassword,
@@ -432,6 +433,7 @@
 
             <div id="explorarLista" class="flex-1 min-h-0 overflow-y-auto p-2">
                 <p id="explorarVazio" class="hidden text-sm text-zinc-500 p-4 text-center">Nenhum perfil público no momento.</p>
+                <p id="explorarErro" class="hidden text-sm text-red-400 p-4 text-center">Não foi possível carregar os perfis. Verifique sua conexão e tente novamente.</p>
                 <ul id="explorarPerfis" class="divide-y divide-zinc-800/80" aria-label="Perfis públicos"></ul>
             </div>
 

@@ -8,10 +8,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm install
 npm run dev          # servidor em http://localhost:3000 (http-server, sem cache)
 npm run lint         # ESLint em src/js/**/*.js e src/config/**/*.js
+npm test             # Vitest (roda uma vez); test:watch para modo watch; coverage para cobertura
 npm run deploy       # deploy para Vercel produção (requer Vercel CLI)
 ```
 
-Não há etapa de build nem suíte de testes. O app é HTML/JS/CSS estático servido diretamente.
+Não há etapa de build. Os testes usam **Vitest + jsdom** (`test/**/*.test.js`) e cobrem a lógica pura de `database.js` (datas, import de CSV, estatísticas, snapshot) e os métodos de perfil público em `firebase.js` (com `window.firebaseSDK` mockado). O app em si é HTML/JS/CSS estático servido diretamente. O projeto é ESM (`"type": "module"` no package.json); por isso o config do ESLint é `.eslintrc.cjs`.
 
 ## Configuração Firebase
 
@@ -80,7 +81,7 @@ Os registros de peso são organizados como `{ [mes]: { [semana]: [ {peso, data, 
 - **Meta de peso** — `users/{uid}.metaPeso` (+ localStorage `weightcharts_meta_{uid}`); desenhada como linha tracejada (2º dataset) via `WeightChart.setGoal()`.
 - **Filtro de período** — `getAllRecords(rangeDays)` filtra os últimos N dias (30/90/365/null=tudo); `WeightChart` guarda o range ativo em `_rangeDays`.
 - **Estatísticas** — `WeightDatabase.getStats()` retorna `latestPeso`, `delta`, `delta7`, `delta30`, `min`, `max`, `avg`, `total`.
-- **Perfil público / Explorar** — opt-in em `users/{uid}.public`. Quando público, espelha `displayName` + um snapshot `evolucao: [{t,p}]` (de `getEvolucaoSnapshot()`) no próprio doc `users/{uid}` — os `weightRecords` continuam privados. A seção "Explorar" lista `users where public==true` (`firebaseManager.listPublicProfiles()`) e renderiza a evolução de cada um num `WeightChart` read-only (`new WeightChart(id, { live:false })` + `renderPoints()`). O snapshot é regravado após cada escrita via `WeightApp.syncPublicProfile()`. As regras do Firestore liberam leitura de `users/{uid}` quando `public==true`.
+- **Perfil público / Explorar** — opt-in via flag `users/{uid}.public` (doc **privado**, só o dono lê). O snapshot público fica em **coleções separadas**, legíveis por qualquer autenticado: `publicProfiles/{uid}` guarda metadados leves (`displayName`, `meta`, `count` = total real de registros) para a lista, e `publicSeries/{uid}` guarda a série completa (`points: [{t,p}]`). `getEvolucaoSnapshot()` retorna `{ points, total }` — `points` limitado a 1000 (para o gráfico) e `total` = contagem real (para `count`). Assim tema/preferências e os `weightRecords` continuam privados. A seção "Explorar" lista `publicProfiles` (`firebaseManager.listPublicProfiles()` — docs pequenos) e, só ao abrir um perfil, busca a série de `publicSeries/{uid}` (`getPublicSeries(uid)`) e renderiza num `WeightChart` read-only (`new WeightChart(id, { live:false })` + `renderPoints()`). O snapshot é regravado após cada escrita/alteração de meta — e uma vez no carregamento se já público (auto-cura de drift entre dispositivos) — via `WeightApp.syncPublicProfile()` → `firebaseManager.updatePublicSnapshot()`; ao desativar, `setProfilePublic(false)` **apaga** ambos os docs públicos. `listPublicProfiles()` **lança** em erro para a UI distinguir "sem perfis" de "falha ao carregar". As regras do Firestore liberam leitura de `publicProfiles`/`publicSeries` a autenticados; `users/{uid}` volta a ser só-do-dono.
 
 ### Tema
 

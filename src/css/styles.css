@@ -472,3 +472,38 @@ html[data-theme="light"] .theme-landing .landing-social-link {
 html[data-theme="light"] .theme-landing .landing-social-link:hover {
     color: #ea580c !important;
 }
+
+/* —— Explorar (perfis públicos) no tema claro —— */
+html[data-theme="light"] #modalExplorar .text-white {
+    color: #18181b !important;
+}
+
+html[data-theme="light"] #modalExplorar .text-zinc-200 {
+    color: #27272a !important;
+}
+
+html[data-theme="light"] #modalExplorar .text-zinc-400,
+html[data-theme="light"] #modalExplorar .text-zinc-500 {
+    color: #71717a !important;
+}
+
+html[data-theme="light"] #modalExplorar #explorarErro {
+    color: #dc2626 !important;
+}
+
+html[data-theme="light"] #modalExplorar .border-zinc-800 {
+    border-color: #e4e4e7 !important;
+}
+
+html[data-theme="light"] #modalExplorar #explorarPerfis li + li {
+    border-top-color: #e4e4e7 !important;
+}
+
+html[data-theme="light"] #modalExplorar #explorarPerfis li:hover {
+    background-color: rgba(244, 244, 245, 0.9) !important;
+}
+
+html[data-theme="light"] #modalExplorar #btnFecharExplorar:hover {
+    background-color: #e4e4e7 !important;
+    color: #18181b !important;
+}

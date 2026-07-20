@@ -76,7 +76,10 @@ function parseImportCsv(text) {
             throw new Error(`Máximo de ${MAX_IMPORT_RECORDS} registros por importação.`);
         }
 
-        const partes = linhas[i].split(/[;,]/);
+        // Separa por ';' quando presente (formato exportado pelo app) — senão por ','.
+        // Dividir sempre em [;,] quebraria a vírgula decimal do peso (ex.: "80,5" → "80").
+        const sep = linhas[i].includes(';') ? ';' : ',';
+        const partes = linhas[i].split(sep);
         if (partes.length < 2) {
             throw new Error(`Linha inválida: "${linhas[i]}". Use o formato data;peso.`);
         }
@@ -574,8 +577,9 @@ class WeightDatabase {
     }
 
     /**
-     * Snapshot compacto da evolução para o perfil público: `[{ t: ms, p: peso }]` (asc).
-     * Limita aos últimos pontos para não estourar o tamanho do doc.
+     * Snapshot compacto da evolução para o perfil público.
+     * Retorna `{ points: [{ t: ms, p: peso }] (asc), total }`, onde `points` é limitado aos
+     * últimos `maxPoints` (para não estourar o doc) e `total` é a contagem real de registros.
      */
     async getEvolucaoSnapshot(maxPoints = 1000) {
         let list = [];
@@ -585,7 +589,10 @@ class WeightDatabase {
             console.error('Erro ao montar snapshot:', error);
         }
         const trimmed = list.length > maxPoints ? list.slice(list.length - maxPoints) : list;
-        return trimmed.map((r) => ({ t: r.timestamp, p: r.peso }));
+        return {
+            points: trimmed.map((r) => ({ t: r.timestamp, p: r.peso })),
+            total: list.length,
+        };
     }
 
     // Obter registros de um mês específico
@@ -893,3 +900,16 @@ class WeightDatabase {
 
 // Exportar instância única
 export const weightDB = new WeightDatabase();
+
+// Helpers puros (sem dependência de DOM/Firebase) — expostos para testes unitários.
+export {
+    WeightDatabase,
+    derivePeriodFromMillis,
+    parseDataBrToMs,
+    normalizeImportPeso,
+    parseImportCsv,
+    toMillis,
+    dayKeyFromTs,
+    recordPeriodLabel,
+    recordAxisLabels,
+};

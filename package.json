@@ -3,10 +3,14 @@
   "version": "1.0.0",
   "description": "Aplicação web mobile-first para acompanhamento de peso familiar",
   "main": "index.html",
+  "type": "module",
   "scripts": {
     "start": "npx http-server . -p 3000 -c-1",
     "dev": "npx http-server . -p 3000 -c-1",
     "lint": "eslint \"src/js/**/*.js\" \"src/config/**/*.js\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
     "icons": "node scripts/gen-icons.mjs",
     "build": "echo 'Build não necessário para aplicação estática'",
     "deploy": "vercel --prod"
@@ -21,8 +25,11 @@
   "author": "Fernando Garcia Rangel",
   "license": "MIT",
   "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^8.57.0",
     "http-server": "^14.1.1",
-    "sharp": "^0.35.1"
+    "jsdom": "^29.1.1",
+    "sharp": "^0.35.1",
+    "vitest": "^4.1.10"
   }
 }
