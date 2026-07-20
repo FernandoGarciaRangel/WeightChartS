@@ -213,6 +213,25 @@ class WeightDatabase {
     }
 
     /**
+     * True quando há uma sessão Firebase ativa e o SDK está pronto.
+     *
+     * Aguarda `firebaseManager.initialize()` de propósito: ao reabrir o app com a
+     * sessão restaurada, o evento `userAuthChanged` dispara ANTES de o init concluir,
+     * quando `this.useFirebase` ainda é false. Decidir a fonte de dados por essa flag
+     * fazia o app ler do localStorage (vazio) e os registros do Firestore "sumiam".
+     * Aqui a decisão espera o Firebase ficar pronto e usa o estado real da sessão.
+     */
+    async firebaseSessionReady() {
+        const ok = await firebaseManager.initialize();
+        if (ok) this.useFirebase = true;
+        if (ok && firebaseManager.isAuthenticated()) {
+            this.currentUserId = firebaseManager.getCurrentUserId();
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * Lista plana de registros, ordenada por timestamp (asc), com cache em memória.
      * Fonte única para gráfico, estatísticas, lista e verificação de duplicados —
      * evita reler a coleção do Firebase a cada chamada.
@@ -221,7 +240,7 @@ class WeightDatabase {
         if (this._recordsCache) return this._recordsCache;
 
         let list;
-        if (this.useFirebase && this.currentUserId) {
+        if (await this.firebaseSessionReady()) {
             const fb = await firebaseManager.getWeightRecords();
             list = fb.map((r) => ({
                 id: r.id,
@@ -351,7 +370,7 @@ class WeightDatabase {
     // Carregar dados (Firebase ou localStorage)
     async loadData() {
         this.invalidateCache();
-        if (this.useFirebase && this.currentUserId) {
+        if (await this.firebaseSessionReady()) {
             try {
                 const firebaseRecords = await firebaseManager.getWeightRecords();
                 this.registros = this.convertFirebaseToLocal(firebaseRecords);
