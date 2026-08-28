@@ -48,7 +48,8 @@ O `index.html` carrega o Firebase como módulos ES a partir do CDN do gstatic nu
 | `src/js/app.js` | `WeightApp` — orquestração da UI, event listeners, fluxo de auth, alternância de tema |
 | `src/js/chart.js` | `WeightChart` — wrapper do Chart.js para gráfico de linha, sincronização de cores por tema |
 | `src/config/firebase-config.js` | Credenciais do projeto Firebase (gitignored) |
-| `src/css/styles.css` | CSS personalizado adicional ao Tailwind |
+| `src/css/tokens.css` | Tokens do sistema de design "Preto & Laranja" (cópia idêntica nos três apps do workspace — ver `../DESIGN-SYSTEM.md`). Carregado **antes** de `styles.css` |
+| `src/css/styles.css` | Camada de componentes dirigida pelos tokens (`card`, `panel`, `btn-primary`, `input-row`, `list-row`, `range-btn`…) + tokens locais de perigo/chip |
 
 ### Fluxo de autenticação e dados
 
@@ -85,7 +86,14 @@ Os registros de peso são organizados como `{ [mes]: { [semana]: [ {peso, data, 
 
 ### Tema
 
-O tema (`light`/`dark`) é aplicado via `document.documentElement.dataset.theme`. `WeightChart.refreshTheme()` relê as cores de `getThemeColors()` e chama `chart.update()` sem recriar o gráfico. A preferência de tema é salva tanto no localStorage (`weightcharts_theme_{uid}`) quanto no Firestore (`users/{uid}.theme`).
+O tema (`light`/`dark`) é aplicado via `document.documentElement.dataset.theme`. `WeightChart.refreshTheme()` relê as cores de `getThemeColors()` e chama `chart.update()` sem recriar o gráfico — e `getThemeColors()` lê os tokens com `getComputedStyle(document.documentElement).getPropertyValue(...)`, então o gráfico acompanha o tema sem hex duplicado. A preferência é salva no localStorage (`weightcharts_theme_{uid}`) e no Firestore (`users/{uid}.theme`); `applyTheme()` espelha também em `weightcharts_theme_last`, a chave sem uid que o script inline do `<head>` consegue ler antes do Firebase resolver a sessão (é o que evita o flash de tema errado).
+
+**Trocar o tema é trocar variável, não acrescentar exceção.** Não existe mais o bloco `html[data-theme="light"] … !important` que mirava classes Tailwind (`.theme-card h2.text-white`); as cores saem de classes semânticas em `styles.css`. Duas consequências ao mexer no markup:
+
+- Use as classes de componente (`card`, `panel`, `btn-primary`, `btn-secondary`, `btn-chip`, `input-row`, `list-row`, `t-dim`, `t-accent`…) em vez de utilitárias de cor do Tailwind (`bg-zinc-900`, `text-white`). As utilitárias de **layout** (`flex`, `gap-2`, `p-4`) continuam normais.
+- As regras de componente começam com `:root` de propósito: o Tailwind CDN injeta o `<style>` dele **depois** do nosso CSS, então empata em especificidade (0,1,0) e vence pela ordem. `:root .card` dá (0,2,0) e ganha sem `!important`.
+
+Regras de contraste (medidas, ver `../DESIGN-SYSTEM.md`): texto sobre laranja é `--on-accent`, nunca branco; laranja como **texto** é `--accent-text` (que escurece no tema claro), nunca `--accent`; `--text-faint` não é cor de texto pequeno.
 
 ## Idioma
 
@@ -94,3 +102,13 @@ A UI, mensagens e documentação são em **português do Brasil (pt-BR)**. Mante
 ## Deploy
 
 O Vercel está configurado em `vercel.json` como build estático (`@vercel/static`). Todas as rotas fazem fallback para `index.html`. Arquivos JS e CSS são servidos com cabeçalhos `Content-Type` explícitos.
+
+### Duas armadilhas ao conferir um deploy
+
+**Maiúsculas/minúsculas.** O NTFS ignora, o Linux da Vercel não. Um `href="src/css/tokens.css"` apontando para um arquivo salvo como `Tokens.css` funciona local e some em produção — 404 silencioso, sem erro de build, página sem estilo. Já aconteceu neste workspace (registrado em `Apps-Hub/CLAUDE.md`). Confira o nome no disco letra por letra contra o `href` antes de commitar.
+
+**Cache de stylesheet ao verificar.** Depois de um deploy, o browser pode continuar reportando os valores antigos dos tokens mesmo após recarregar — o CSS fica em cache. Dá para "confirmar" um deploy e estar lendo o anterior. Antes de acreditar no que o browser mostra, busque o CSS com cache-buster:
+
+```bash
+curl -s "https://<host>/src/css/tokens.css?v=$RANDOM" | grep accent-tint
+```
