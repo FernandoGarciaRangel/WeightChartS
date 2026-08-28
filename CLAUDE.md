@@ -7,6 +7,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 npm install
 npm run dev          # servidor em http://localhost:3000 (http-server, sem cache)
+                     # 3000 é fixo por convenção: o Apps-Hub usa 8080 e a
+                     # Calculadora 8081, para os três subirem ao mesmo tempo.
+                     # O link "voltar para Apps" aponta para o 8080 em dev.
 npm run lint         # ESLint em src/js/**/*.js e src/config/**/*.js
 npm test             # Vitest (roda uma vez); test:watch para modo watch; coverage para cobertura
 npm run deploy       # deploy para Vercel produção (requer Vercel CLI)
