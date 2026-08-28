@@ -160,9 +160,11 @@
                 </li>
             </ul>
 
-            <button type="button" id="btnStartApp" class="btn-primary w-full max-w-sm py-4 px-6 text-lg mb-12">
+            <button type="button" id="btnStartApp" class="btn-primary w-full max-w-sm py-4 px-6 text-lg mb-3">
                 Iniciar
             </button>
+
+            <a href="https://apps-hub-beta.vercel.app" class="btn-back w-full max-w-sm justify-center mb-12" aria-label="Voltar para o portal de apps">← Voltar para Apps</a>
 
             <div class="divider-top mt-auto pt-4 w-full">
                 <p class="text-center text-xs t-dim mb-4">Fernando Garcia Rangel</p>
@@ -292,6 +294,14 @@
                         Voltar ao login
                     </button>
                 </div>
+            </div>
+
+            <!-- Fora dos três formulários de propósito: dentro de um deles sumiria
+                 ao alternar entre entrar / criar conta / redefinir. E dentro do
+                 #authScreen, para ficar sob o aria-modal do diálogo — um elemento
+                 flutuante por cima some para leitor de tela. -->
+            <div class="divider-top mt-5 pt-4">
+                <a href="https://apps-hub-beta.vercel.app" class="btn-back w-full justify-center" aria-label="Voltar para o portal de apps">← Voltar para Apps</a>
             </div>
         </div>
     </div>
