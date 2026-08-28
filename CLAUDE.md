@@ -48,8 +48,8 @@ O `index.html` carrega o Firebase como módulos ES a partir do CDN do gstatic nu
 | `src/js/app.js` | `WeightApp` — orquestração da UI, event listeners, fluxo de auth, alternância de tema |
 | `src/js/chart.js` | `WeightChart` — wrapper do Chart.js para gráfico de linha, sincronização de cores por tema |
 | `src/config/firebase-config.js` | Credenciais do projeto Firebase (gitignored) |
-| `src/css/tokens.css` | Tokens do sistema de design "Preto & Laranja" (cópia idêntica nos três apps do workspace — ver `../DESIGN-SYSTEM.md`). Carregado **antes** de `styles.css` |
-| `src/css/styles.css` | Camada de componentes dirigida pelos tokens (`card`, `panel`, `btn-primary`, `input-row`, `list-row`, `range-btn`…) + tokens locais de perigo/chip |
+| `src/css/tokens.css` | Tokens do sistema de design "Preto & Laranja" (cópia idêntica nos três apps do workspace — ver `../Apps-Hub/DESIGN-SYSTEM.md`). Carregado **antes** de `styles.css` |
+| `src/css/styles.css` | Camada de componentes dirigida pelos tokens (`card`, `panel`, `btn-primary`, `input-row`, `list-row`, `range-btn`…) + tokens locais de perigo (o sistema compartilhado não tem cor de perigo) |
 
 ### Fluxo de autenticação e dados
 
@@ -93,7 +93,7 @@ O tema (`light`/`dark`) é aplicado via `document.documentElement.dataset.theme`
 - Use as classes de componente (`card`, `panel`, `btn-primary`, `btn-secondary`, `btn-chip`, `input-row`, `list-row`, `t-dim`, `t-accent`…) em vez de utilitárias de cor do Tailwind (`bg-zinc-900`, `text-white`). As utilitárias de **layout** (`flex`, `gap-2`, `p-4`) continuam normais.
 - As regras de componente começam com `:root` de propósito: o Tailwind CDN injeta o `<style>` dele **depois** do nosso CSS, então empata em especificidade (0,1,0) e vence pela ordem. `:root .card` dá (0,2,0) e ganha sem `!important`.
 
-Regras de contraste (medidas, ver `../DESIGN-SYSTEM.md`): texto sobre laranja é `--on-accent`, nunca branco; laranja como **texto** é `--accent-text` (que escurece no tema claro), nunca `--accent`; `--text-faint` não é cor de texto pequeno.
+Regras de contraste (medidas, ver `../Apps-Hub/DESIGN-SYSTEM.md`): texto sobre laranja é `--on-accent`, nunca branco; laranja como **texto** é `--accent-text` (que escurece no tema claro), nunca `--accent`; `--text-faint` não é cor de texto pequeno.
 
 ## Idioma
 
