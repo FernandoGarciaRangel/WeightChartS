@@ -23,6 +23,11 @@
     --danger-soft-bg-hover: rgba(220, 38, 38, 0.2);
     --danger-soft-border: rgba(220, 38, 38, 0.35);
     --panel-bg: var(--bg);
+    /* Hover de link. Local, não compartilhado: só este app tem o padrão
+       .btn-link — o Hub e a Calculadora usam --accent-text ou --text.
+       No escuro clareia (8,8:1 sobre --bg); no claro escurece (7,3:1 sobre
+       o painel branco), porque --accent puro ali dá 2,80:1 e reprova. */
+    --link-hover: var(--accent-soft);
 }
 
 :root[data-theme="light"] {
@@ -32,6 +37,7 @@
     --danger-soft-bg-hover: rgba(220, 38, 38, 0.14);
     --danger-soft-border: rgba(220, 38, 38, 0.28);
     --panel-bg: #ffffff;
+    --link-hover: #9a3412;
 }
 
 /* —————————————————————— base —————————————————————— */
@@ -344,12 +350,12 @@ input[type="number"]::-webkit-inner-spin-button {
     transition: color 0.2s ease;
 }
 
+/* O hover tem de afastar-se do fundo, não aproximar-se dele. No escuro isso é
+   clarear; no claro é ESCURECER — e era aqui que estava o erro: `--accent` puro
+   dava 2,80:1 sobre o painel, contra 5,18:1 do repouso, ou seja, passar o rato
+   tornava o link menos legível. Ver --link-hover no topo. */
 :root .btn-link:hover {
-    color: var(--accent-soft);
-}
-
-:root[data-theme="light"] .btn-link:hover {
-    color: var(--accent);
+    color: var(--link-hover);
 }
 
 /* Vermelho é o único sinal de perigo do sistema; #fff sobre #dc2626 dá 4,8:1. */
