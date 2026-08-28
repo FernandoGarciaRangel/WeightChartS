@@ -1,97 +1,78 @@
-/* WeightChartS — tema escuro + laranja */
+/* WeightChartS — camada de componentes do sistema "Preto & Laranja".
+   Os tokens vêm de tokens.css, carregado ANTES deste arquivo.
+
+   Por que quase toda regra começa com `:root`:
+   o Tailwind é CDN e injeta o <style> dele em document.head DEPOIS deste
+   arquivo, então uma utilitária empata em especificidade (0,1,0) e vence pela
+   ordem. `:root .card` dá (0,2,0) e ganha sem `!important` — foi assim que o
+   bloco de ~250 overrides `html[data-theme="light"] … !important` sumiu.
+   Tema claro agora é troca de variável, não lista de exceções. */
+
+/* Tokens locais: o sistema compartilhado é preto+laranja e não tem cor de
+   perigo, mas este app apaga registos. Ficam aqui, como os locais do Apps-Hub.
+   Razões conferidas: #dc2626 sobre o fundo escuro dá 4,1:1 e reprova AA — por
+   isso o texto vermelho no escuro é red-400 (7,2:1), e no claro red-700 (6,2:1).
+   Preenchimento vermelho leva branco (4,8:1), que passa. */
+:root {
+    --danger: #dc2626;
+    --danger-hover: #b91c1c;
+    --on-danger: #ffffff;
+    --danger-text: #f87171;
+    --danger-chip-text: #fca5a5;
+    --danger-soft-bg: rgba(220, 38, 38, 0.12);
+    --danger-soft-bg-hover: rgba(220, 38, 38, 0.2);
+    --danger-soft-border: rgba(220, 38, 38, 0.35);
+    --panel-bg: var(--bg);
+    /* Hover de link. Local, não compartilhado: só este app tem o padrão
+       .btn-link — o Hub e a Calculadora usam --accent-text ou --text.
+       No escuro clareia (8,8:1 sobre --bg); no claro escurece (7,3:1 sobre
+       o painel branco), porque --accent puro ali dá 2,80:1 e reprova. */
+    --link-hover: var(--accent-soft);
+}
+
+:root[data-theme="light"] {
+    --danger-text: #b91c1c;
+    --danger-chip-text: #b91c1c;
+    --danger-soft-bg: rgba(220, 38, 38, 0.08);
+    --danger-soft-bg-hover: rgba(220, 38, 38, 0.14);
+    --danger-soft-border: rgba(220, 38, 38, 0.28);
+    --panel-bg: #ffffff;
+    --link-hover: #9a3412;
+}
+
+/* —————————————————————— base —————————————————————— */
 
 * {
     box-sizing: border-box;
     -webkit-tap-highlight-color: transparent;
 }
 
+html,
 body {
-    font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--bg);
 }
 
-button, select, input {
+body {
+    font-family: var(--font-body);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+::selection {
+    background: var(--accent-glow);
+    color: var(--text);
+}
+
+button,
+select,
+input {
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
     touch-action: manipulation;
-}
-
-input[type="number"] {
-    font-size: 1.125rem;
-    -webkit-text-size-adjust: 100%;
-}
-
-/* Seletor de data nativo (modal de edição) acompanha o tema */
-.theme-date-input {
-    color-scheme: dark;
-}
-
-html[data-theme='light'] .theme-date-input {
-    color-scheme: light;
-}
-
-/* Botão de adicionar desativado (já há registo hoje) */
-#btnAdicionar:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    box-shadow: none;
-}
-
-#btnAdicionar:disabled:hover {
-    background-color: #f97316;
-}
-
-input {
-    color: #fafafa;
-    background-color: rgba(24, 24, 27, 0.8);
-    border-color: #52525b;
-}
-
-input::placeholder {
-    color: #71717a;
-    opacity: 1;
-}
-
-input:focus {
-    outline: none;
-    border-color: #f97316;
-    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.2);
-}
-
-input:disabled {
-    color: #71717a;
-    background-color: #18181b;
-}
-
-input[type="number"]::-webkit-outer-spin-button,
-input[type="number"]::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
-
-input[type="number"] {
-    -moz-appearance: textfield;
-}
-
-input:focus,
-select:focus {
-    outline: none;
-}
-
-button:active {
-    transform: scale(0.98);
-}
-
-#graficoPeso {
-    width: 100% !important;
-    height: 100% !important;
-    max-height: 460px;
-}
-
-.transition-colors {
-    transition: background-color 0.2s ease, transform 0.1s ease, border-color 0.2s ease;
+    font-family: inherit;
 }
 
 button {
@@ -100,47 +81,596 @@ button {
     cursor: pointer;
 }
 
-header {
+button:active {
+    transform: scale(0.98);
+}
+
+/* Foco padronizado — igual nos dois temas, em todo controle (§4 da spec). */
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+}
+
+/* O anel do :focus-visible substitui o do Tailwind; sem isto os dois somam. */
+:root input:focus,
+:root select:focus,
+:root button:focus {
+    outline: none;
+}
+
+:root input:focus-visible,
+:root select:focus-visible,
+:root button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+}
+
+/* —————————————————————— tipografia —————————————————————— */
+
+:root .font-display {
+    font-family: var(--font-display);
+}
+
+:root .t-strong { color: var(--text); }
+:root .t-dim { color: var(--text-dim); }
+:root .t-accent { color: var(--accent-text); }
+:root .t-danger { color: var(--danger-text); }
+
+/* —————————————————————— fundo e casca —————————————————————— */
+
+:root .bg-glow {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse 80% 50% at 50% -20%, var(--accent-glow), transparent);
+}
+
+:root .site-header {
+    border-bottom: 1px solid var(--border);
+    background-color: var(--bg); /* fallback: navegador sem color-mix */
+    background-color: color-mix(in srgb, var(--bg) 90%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 0 40px -10px var(--accent-glow);
+}
+
+:root .brand {
+    font-family: var(--font-display);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--text);
+}
+
+:root .brand-accent {
+    color: var(--accent-text);
+}
+
+/* Syne 800 é bem mais largo que a stack de sistema que estava aqui antes:
+   "WeightChartS" mede 334px a 30px e 268px a 24px. No lockup horizontal
+   (ícone + gap + texto) sobram ~212px na landing e ~236px no header a 320px de
+   viewport — ou seja, o título transbordava em qualquer telemóvel. Não há
+   espaço nem hífen onde quebrar numa palavra só, então abaixo de 480px o
+   tamanho passa a ser fluido. Medido, não estimado. */
+@media (max-width: 480px) {
+    :root .brand {
+        font-size: clamp(1.1rem, 5.4vw, 1.5rem);
+    }
+}
+
+:root .auth-status[data-auth="in"] { color: var(--accent-text); }
+:root .auth-status[data-auth="out"] { color: var(--danger-text); }
+
+:root .user-info { color: var(--text-dim); }
+
+:root .site-footer { color: var(--text-dim); }
+
+/* —————————————————————— superfícies —————————————————————— */
+
+:root .card {
+    border-radius: var(--radius);
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.05),
+        0 14px 40px -20px var(--accent-glow),
+        0 10px 30px -22px rgba(0, 0, 0, 0.75);
+}
+
+/* No claro, gradiente e brilho escuros sujam o fundo — sombra neutra (§4). */
+:root[data-theme="light"] .card {
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08);
+}
+
+:root .panel {
+    border-radius: var(--radius);
+    background-color: var(--panel-bg);
+    border: 1px solid var(--border);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.05),
+        0 24px 60px -24px var(--accent-glow),
+        0 18px 50px -28px rgba(0, 0, 0, 0.85);
+}
+
+:root[data-theme="light"] .panel {
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.12);
+}
+
+:root .scrim {
+    background-color: rgba(0, 0, 0, 0.72);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+:root[data-theme="light"] .scrim {
+    background-color: rgba(24, 24, 27, 0.35);
+}
+
+:root .theme-landing {
+    background-color: var(--bg);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
 }
 
-select {
+:root .card-title {
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--text);
+}
+
+:root .card-sub {
+    color: var(--text-dim);
+}
+
+:root .divider-top {
+    border-top: 1px solid var(--border);
+}
+
+:root .modal-head {
+    border-bottom: 1px solid var(--border);
+}
+
+/* Ponto de acento ao lado do título de "Registrar peso". */
+:root .dot {
+    background-color: var(--accent);
+    box-shadow: 0 0 8px var(--accent-glow);
+}
+
+/* —————————————————————— campos —————————————————————— */
+
+:root .field-label {
+    color: var(--text-dim);
+    font-weight: 600;
+}
+
+:root .input-row {
+    min-height: 46px;
+    border-radius: var(--radius-sm);
+    background-color: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* §2.3: #71717a sobre --surface-2 dá 3,5:1 no escuro e 4,4:1 no claro — o
+   placeholder é texto que se lê, então vai a --text-dim. */
+:root .input-row::placeholder {
+    color: var(--text-dim);
+    opacity: 1;
+}
+
+:root .input-row:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+/* Desativado continua em --text-faint de propósito: a WCAG 1.4.3 isenta
+   controles inativos, e igualar o contraste ao do ativo apaga o sinal. */
+:root .input-row:disabled {
+    color: var(--text-faint);
+    background-color: var(--surface);
+    cursor: not-allowed;
+}
+
+input[type="number"] {
+    font-size: 1.125rem;
+    -webkit-text-size-adjust: 100%;
+    -moz-appearance: textfield;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Seletor de data nativo acompanha o tema — resíduo legítimo por tema. */
+.theme-date-input { color-scheme: dark; }
+:root[data-theme="light"] .theme-date-input { color-scheme: light; }
+
+/* —————————————————————— botões —————————————————————— */
+
+/* §2.2: texto sobre laranja é quase-preto (7,1:1), nunca branco (2,8:1). */
+:root .btn-primary {
+    min-height: 44px;
+    border-radius: var(--radius-sm);
+    background-color: var(--accent);
+    color: var(--on-accent);
+    font-weight: 700;
+    border: 1px solid transparent;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+:root .btn-primary:hover {
+    background-color: var(--accent-soft);
+}
+
+:root .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
+    background-color: var(--accent);
+    transform: none;
+}
+
+:root .btn-secondary {
+    min-height: 44px;
+    border-radius: var(--radius-sm);
+    background-color: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-weight: 600;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+:root .btn-secondary:hover {
+    border-color: var(--border-hover);
+}
+
+:root .btn-ghost {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-weight: 600;
+    transition: color 0.2s ease;
+}
+
+:root .btn-ghost:hover {
+    color: var(--text);
+}
+
+:root .btn-link {
+    background: none;
+    border: none;
+    color: var(--accent-text);
+    font-weight: 600;
+    transition: color 0.2s ease;
+}
+
+/* O hover tem de afastar-se do fundo, não aproximar-se dele. No escuro isso é
+   clarear; no claro é ESCURECER — e era aqui que estava o erro: `--accent` puro
+   dava 2,80:1 sobre o painel, contra 5,18:1 do repouso, ou seja, passar o rato
+   tornava o link menos legível. Ver --link-hover no topo. */
+:root .btn-link:hover {
+    color: var(--link-hover);
+}
+
+/* Vermelho é o único sinal de perigo do sistema; #fff sobre #dc2626 dá 4,8:1. */
+:root .btn-danger {
+    min-height: 44px;
+    border-radius: var(--radius-sm);
+    background-color: var(--danger);
+    border: 1px solid transparent;
+    color: var(--on-danger);
+    font-weight: 700;
+    transition: background-color 0.2s ease;
+}
+
+:root .btn-danger:hover {
+    background-color: var(--danger-hover);
+}
+
+:root .btn-danger-soft {
+    min-height: 44px;
+    border-radius: var(--radius-sm);
+    background-color: var(--danger-soft-bg);
+    border: 1px solid var(--danger-soft-border);
+    color: var(--danger-chip-text);
+    font-weight: 600;
+    transition: background-color 0.2s ease;
+}
+
+:root .btn-danger-soft:hover {
+    background-color: var(--danger-soft-bg-hover);
+}
+
+/* Chips: mesma anatomia do btn-secondary, tipo menor (usados nas listas). */
+:root .btn-chip {
+    min-height: 44px;
+    border-radius: var(--radius-xs);
+    background-color: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: var(--step--1);
+    font-weight: 600;
+    padding: 0 0.75rem;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+:root .btn-chip:hover {
+    border-color: var(--border-hover);
+}
+
+:root .btn-chip-danger {
+    min-height: 44px;
+    border-radius: var(--radius-xs);
+    background-color: var(--danger-soft-bg);
+    border: 1px solid var(--danger-soft-border);
+    color: var(--danger-chip-text);
+    font-size: var(--step--1);
+    font-weight: 600;
+    padding: 0 0.75rem;
+    transition: background-color 0.2s ease;
+}
+
+:root .btn-chip-danger:hover {
+    background-color: var(--danger-soft-bg-hover);
+}
+
+/* Volta para o portal. É um <a>, então não herda o `button { min-height: 44px }`
+   global — a altura vai explícita, como no .landing-social-link. */
+:root .btn-back {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 0.75rem;
+    border-radius: var(--radius-xs);
+    background-color: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: var(--step--1);
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+:root .btn-back:hover {
+    border-color: var(--border-hover);
+    color: var(--accent-text);
+}
+
+:root .icon-btn {
+    border-radius: var(--radius-xs);
+    background: none;
+    border: 1px solid transparent;
+    color: var(--text-dim);
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+:root .icon-btn:hover {
+    background-color: var(--surface-2);
+    color: var(--text);
+}
+
+/* —————————————————————— segmented (filtro de período) —————————————————————— */
+
+:root .range-btn {
+    min-height: 44px;
+    border-radius: var(--radius-xs);
+    background-color: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: var(--step--1);
+    font-weight: 600;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+:root .range-btn:hover {
+    border-color: var(--border-hover);
+}
+
+/* Item ativo é um btn-primary em miniatura (§4) — laranja com texto quase-preto. */
+:root .range-btn.is-active {
+    background-color: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent);
+    font-weight: 700;
+}
+
+/* —————————————————————— listas —————————————————————— */
+
+:root .list-box {
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    overflow: hidden;
+}
+
+:root .list-row {
+    background-color: var(--surface-2);
+}
+
+:root .list-row + .list-row {
+    border-top: 1px solid var(--border);
+}
+
+:root .list-row-info {
+    color: var(--text-dim);
+}
+
+:root .list-row-peso {
+    color: var(--accent-text);
+    font-weight: 700;
+}
+
+:root .perfil-row {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+:root .perfil-row + .perfil-row {
+    border-top: 1px solid var(--border);
+}
+
+:root .perfil-row:hover {
+    background-color: var(--surface-2);
+}
+
+:root .perfil-nome {
+    color: var(--text);
+    font-weight: 600;
+}
+
+/* Metadado em texto pequeno usa --text-dim, não --text-faint (§2.3). */
+:root .perfil-meta {
+    color: var(--text-dim);
+}
+
+:root .empty-note {
+    color: var(--text-dim);
+}
+
+/* —————————————————————— estatísticas —————————————————————— */
+
+:root .stat {
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background-color: var(--surface-2);
+}
+
+/* Pílula laranja com texto laranja: é o caso da §2.4, então o fundo é
+   --accent-tint (assimétrico) e não --accent-glow, que existe para sombra.
+   Com o glow a 0,10 o #statMeta ficava em 4,68:1 — passava, mas por acaso:
+   sobre #fafafa direto o mesmo valor dá 4,49:1 e reprova. */
+:root .stat-accent {
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-hover);
+    background-color: var(--accent-tint);
+}
+
+:root .stat-num {
+    font-family: var(--font-display);
+    font-weight: 800;
+    color: var(--text);
+}
+
+:root .stat-num-accent {
+    font-family: var(--font-display);
+    font-weight: 800;
+    color: var(--accent-text);
+}
+
+:root .stat-label {
+    color: var(--text-dim);
+}
+
+:root #pesoAtual,
+:root #totalRegistros {
+    font-size: var(--step-2);
+    line-height: 1.3;
+}
+
+/* —————————————————————— toggle de perfil público —————————————————————— */
+
+:root .toggle {
+    border-radius: 100px;
+    background-color: var(--surface-2);
+    border: 1px solid var(--border);
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+:root .toggle.is-on {
+    background-color: var(--accent);
+    border-color: var(--accent);
+}
+
+:root .toggle-knob {
+    background-color: var(--text-dim);
+    transform: translateX(0.25rem);
+    transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+:root .toggle.is-on .toggle-knob {
+    background-color: var(--on-accent);
+    transform: translateX(1.5rem);
+}
+
+/* —————————————————————— landing —————————————————————— */
+
+:root .step-num {
+    background-color: var(--accent-tint);
+    color: var(--accent-text);
+    font-family: var(--font-display);
+    font-weight: 800;
+}
+
+/* Eram 20px de altura — a altura do ícone. Alvo de toque mínimo é 44px (§4). */
+:root .landing-social-link {
+    min-height: 44px;
+    padding: 0 0.5rem;
+    border-radius: var(--radius-xs);
+    color: var(--text-dim);
+    transition: color 0.2s ease;
+}
+
+:root .landing-social-link:hover {
+    color: var(--accent-text);
+}
+
+/* —————————————————————— select —————————————————————— */
+
+:root select {
     background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23a1a1aa' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
     background-position: right 0.5rem center;
     background-repeat: no-repeat;
     background-size: 1.5em 1.5em;
     padding-right: 2.5rem;
-    color: #fafafa;
-    background-color: rgba(24, 24, 27, 0.8);
-    border-color: #52525b;
+    min-height: 46px;
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    background-color: var(--surface-2);
+    border: 1px solid var(--border);
+    font-weight: 600;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-select option {
-    color: #fafafa;
-    background-color: #18181b;
+/* A seta é um data URI: a cor do traço não aceita var() — um por tema. */
+:root[data-theme="light"] select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2352525b' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+}
+
+:root select:hover {
+    border-color: var(--border-hover);
+}
+
+:root select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+:root select:disabled {
+    color: var(--text-faint);
+    background-color: var(--surface);
+}
+
+:root select option {
+    color: var(--text);
+    background-color: var(--surface);
     padding: 8px 12px;
 }
 
-select option:hover,
-select option:checked {
-    background-color: #27272a;
+/* —————————————————————— gráfico —————————————————————— */
+
+#graficoPeso {
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 460px;
 }
 
-select:focus {
-    border-color: #f97316;
-    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.2);
-}
-
-select:disabled {
-    color: #71717a;
-    background-color: #18181b;
-}
-
-#pesoAtual, #totalRegistros {
-    font-size: 1.5rem;
-    line-height: 2rem;
-}
+/* —————————————————————— mensagens —————————————————————— */
 
 .message {
     position: fixed;
@@ -148,26 +678,30 @@ select:disabled {
     left: 1rem;
     right: 1rem;
     padding: 1rem 1.25rem;
-    border-radius: 0.75rem;
-    color: white;
-    font-weight: 500;
+    border-radius: var(--radius-sm);
+    font-weight: 700;
     z-index: 60;
     text-align: center;
     animation: slideDown 0.3s ease;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid transparent;
 }
 
+/* Era gradiente laranja com texto branco (2,8:1); agora chapado a 7,1:1. */
 .message.msg-success {
-    background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+    background: var(--accent);
+    color: var(--on-accent);
 }
 
 .message.msg-error {
-    background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+    background: var(--danger);
+    color: var(--on-danger);
 }
 
 .message.msg-info {
-    background: linear-gradient(135deg, #3f3f46 0%, #27272a 100%);
+    background: var(--surface-2);
+    border-color: var(--border);
+    color: var(--text);
 }
 
 @keyframes slideDown {
@@ -180,6 +714,8 @@ select:disabled {
         opacity: 1;
     }
 }
+
+/* —————————————————————— carregando —————————————————————— */
 
 .loading {
     opacity: 0.6;
@@ -195,8 +731,8 @@ select:disabled {
     width: 24px;
     height: 24px;
     margin: -12px 0 0 -12px;
-    border: 2px solid #3f3f46;
-    border-top: 2px solid #f97316;
+    border: 2px solid var(--border);
+    border-top: 2px solid var(--accent);
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
@@ -205,6 +741,8 @@ select:disabled {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
+
+/* —————————————————————— responsivo —————————————————————— */
 
 @media (max-width: 480px) {
     .p-4 {
@@ -215,26 +753,8 @@ select:disabled {
     }
 }
 
-select {
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-    font-weight: 500;
-}
-
-select:hover {
-    border-color: #71717a;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    * {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-    }
-}
-
 @media (display-mode: standalone) {
-    header {
+    .site-header {
         padding-top: env(safe-area-inset-top);
     }
     body {
@@ -243,7 +763,7 @@ select:hover {
 }
 
 @media (orientation: landscape) and (max-height: 500px) {
-    header {
+    .site-header {
         padding: 0.5rem 1rem;
     }
     .p-4 {
@@ -257,253 +777,12 @@ select:hover {
     }
 }
 
-/* —— Tema claro (preferência guardada em Firestore + localStorage) —— */
-html[data-theme="light"] body {
-    background-color: #fafafa !important;
-    color: #18181b !important;
-}
-
-html[data-theme="light"] #bgGradient {
-    background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(249, 115, 22, 0.08), transparent) !important;
-}
-
-html[data-theme="light"] #siteHeader {
-    border-color: rgba(228, 228, 231, 0.9) !important;
-    background-color: rgba(250, 250, 250, 0.92) !important;
-    box-shadow: 0 0 40px -10px rgba(249, 115, 22, 0.2) !important;
-}
-
-html[data-theme="light"] #siteHeader h1.text-white,
-html[data-theme="light"] #siteHeader .text-white {
-    color: #18181b !important;
-}
-
-html[data-theme="light"] #siteHeader .text-zinc-400 {
-    color: #52525b !important;
-}
-
-html[data-theme="light"] #authStatus[data-auth="in"] {
-    color: #c2410c !important;
-}
-
-html[data-theme="light"] #authStatus[data-auth="out"] {
-    color: #dc2626 !important;
-}
-
-html[data-theme="light"] #userInfo {
-    color: #71717a !important;
-}
-
-html[data-theme="light"] #btnTheme,
-html[data-theme="light"] #btnLogout {
-    background-color: #e4e4e7 !important;
-    color: #18181b !important;
-    border-color: #d4d4d8 !important;
-}
-
-html[data-theme="light"] #btnTheme:hover,
-html[data-theme="light"] #btnLogout:hover {
-    background-color: #d4d4d8 !important;
-    border-color: rgba(249, 115, 22, 0.45) !important;
-}
-
-html[data-theme="light"] .theme-card {
-    border-color: #e4e4e7 !important;
-    background-color: rgba(255, 255, 255, 0.75) !important;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08) !important;
-}
-
-html[data-theme="light"] .theme-card h2.text-white,
-html[data-theme="light"] .theme-card h3.text-white {
-    color: #18181b !important;
-}
-
-html[data-theme="light"] .theme-card .text-zinc-400,
-html[data-theme="light"] .theme-card .text-zinc-500 {
-    color: #52525b !important;
-}
-
-html[data-theme="light"] .theme-card label.text-zinc-400 {
-    color: #52525b !important;
-}
-
-html[data-theme="light"] .theme-card .border-zinc-800 {
-    border-color: #e4e4e7 !important;
-}
-
-html[data-theme="light"] #listaRegistros {
-    border-color: #e4e4e7 !important;
-}
-
-html[data-theme="light"] #listaRegistros > li + li {
-    border-top-color: #e4e4e7 !important;
-}
-
-html[data-theme="light"] .theme-card li.bg-zinc-950\/40 {
-    background-color: rgba(244, 244, 245, 0.9) !important;
-}
-
-html[data-theme="light"] .theme-card .text-zinc-300 {
-    color: #3f3f46 !important;
-}
-
-html[data-theme="light"] .theme-card button.border-zinc-600.bg-zinc-800 {
-    background-color: #e4e4e7 !important;
-    border-color: #d4d4d8 !important;
-    color: #18181b !important;
-}
-
-html[data-theme="light"] .theme-card #btnExportar,
-html[data-theme="light"] .theme-card #btnImportar {
-    background-color: #e4e4e7 !important;
-    border-color: #d4d4d8 !important;
-    color: #18181b !important;
-}
-
-html[data-theme="light"] .theme-card #btnLimpar {
-    background-color: rgba(254, 226, 226, 0.6) !important;
-    border-color: rgba(248, 113, 113, 0.35) !important;
-    color: #b91c1c !important;
-}
-
-html[data-theme="light"] footer .text-zinc-500,
-html[data-theme="light"] footer .text-zinc-400 {
-    color: #71717a !important;
-}
-
-html[data-theme="light"] input {
-    color: #18181b !important;
-    background-color: rgba(255, 255, 255, 0.95) !important;
-    border-color: #d4d4d8 !important;
-}
-
-html[data-theme="light"] input::placeholder {
-    color: #a1a1aa !important;
-}
-
-html[data-theme="light"] input:focus {
-    border-color: #f97316 !important;
-    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.2) !important;
-}
-
-html[data-theme="light"] select {
-    color: #18181b !important;
-    background-color: rgba(255, 255, 255, 0.95) !important;
-    border-color: #d4d4d8 !important;
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2352525b' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
-}
-
-html[data-theme="light"] select option {
-    color: #18181b !important;
-    background-color: #fafafa !important;
-}
-
-html[data-theme="light"] #pesoAtual,
-html[data-theme="light"] #totalRegistros {
-    color: #18181b !important;
-}
-
-html[data-theme="light"] #authScreen {
-    background-color: rgba(250, 250, 250, 0.85) !important;
-}
-
-html[data-theme="light"] .theme-auth-panel {
-    border-color: #e4e4e7 !important;
-    background-color: #ffffff !important;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.12) !important;
-}
-
-html[data-theme="light"] .theme-auth-panel h2.text-white,
-html[data-theme="light"] #modalEditarPeso .theme-auth-panel h3.text-white {
-    color: #18181b !important;
-}
-
-html[data-theme="light"] .theme-auth-panel .text-zinc-400,
-html[data-theme="light"] #modalEditarPeso .text-zinc-400 {
-    color: #52525b !important;
-}
-
-html[data-theme="light"] #modalEditarPeso {
-    background-color: rgba(24, 24, 27, 0.35) !important;
-}
-
-html[data-theme="light"] #modalEditarPeso .border-zinc-600 {
-    border-color: #d4d4d8 !important;
-}
-
-html[data-theme="light"] #modalEditarPeso #btnCancelarEditarPeso {
-    color: #3f3f46 !important;
-}
-
-html[data-theme="light"] #modalEditarPeso #btnCancelarEditarPeso:hover {
-    background-color: #f4f4f5 !important;
-}
-
-html[data-theme="light"] .theme-landing {
-    background-color: rgba(250, 250, 250, 0.98) !important;
-}
-
-html[data-theme="light"] .theme-landing h1.text-white,
-html[data-theme="light"] .theme-landing .text-white {
-    color: #18181b !important;
-}
-
-html[data-theme="light"] .theme-landing .text-zinc-300,
-html[data-theme="light"] .theme-landing .text-zinc-400 {
-    color: #52525b !important;
-}
-
-html[data-theme="light"] .theme-landing .text-zinc-200 {
-    color: #27272a !important;
-}
-
-html[data-theme="light"] .theme-landing .text-zinc-500 {
-    color: #71717a !important;
-}
-
-html[data-theme="light"] .theme-landing .border-t {
-    border-color: #e4e4e7 !important;
-}
-
-html[data-theme="light"] .theme-landing .landing-social-link {
-    color: #52525b !important;
-}
-
-html[data-theme="light"] .theme-landing .landing-social-link:hover {
-    color: #ea580c !important;
-}
-
-/* —— Explorar (perfis públicos) no tema claro —— */
-html[data-theme="light"] #modalExplorar .text-white {
-    color: #18181b !important;
-}
-
-html[data-theme="light"] #modalExplorar .text-zinc-200 {
-    color: #27272a !important;
-}
-
-html[data-theme="light"] #modalExplorar .text-zinc-400,
-html[data-theme="light"] #modalExplorar .text-zinc-500 {
-    color: #71717a !important;
-}
-
-html[data-theme="light"] #modalExplorar #explorarErro {
-    color: #dc2626 !important;
-}
-
-html[data-theme="light"] #modalExplorar .border-zinc-800 {
-    border-color: #e4e4e7 !important;
-}
-
-html[data-theme="light"] #modalExplorar #explorarPerfis li + li {
-    border-top-color: #e4e4e7 !important;
-}
-
-html[data-theme="light"] #modalExplorar #explorarPerfis li:hover {
-    background-color: rgba(244, 244, 245, 0.9) !important;
-}
-
-html[data-theme="light"] #modalExplorar #btnFecharExplorar:hover {
-    background-color: #e4e4e7 !important;
-    color: #18181b !important;
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation: none !important;
+        transition: none !important;
+    }
+    button:active {
+        transform: none;
+    }
 }

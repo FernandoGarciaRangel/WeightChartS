@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#f97316">
+    <meta name="theme-color" content="#09090b">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="WeightChartS">
@@ -15,7 +15,28 @@
     <link rel="apple-touch-icon" href="src/icons/apple-touch-icon.png">
     
     <link rel="manifest" href="src/manifest.json">
-    
+
+    <!-- Antes do CSS: evita o flash de tema errado ao recarregar. A chave por
+         utilizador (weightcharts_theme_{uid}) só é conhecida depois do Firebase
+         resolver a sessão, então applyTheme() espelha a escolha nesta chave
+         única, que é a que dá para ler aqui. -->
+    <script>
+        (function () {
+            try {
+                var t = localStorage.getItem('weightcharts_theme_last');
+                if (t === 'light' || t === 'dark') {
+                    document.documentElement.dataset.theme = t;
+                    var m = document.querySelector('meta[name="theme-color"]');
+                    if (m) m.content = t === 'light' ? '#fafafa' : '#09090b';
+                }
+            } catch (e) { /* localStorage indisponível — segue no tema escuro */ }
+        })();
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -27,6 +48,10 @@
                             dim: '#c2410c',
                             glow: 'rgba(249, 115, 22, 0.15)',
                         },
+                    },
+                    fontFamily: {
+                        sans: ['Nunito', 'system-ui', 'sans-serif'],
+                        display: ['Syne', 'system-ui', 'sans-serif'],
                     },
                     boxShadow: {
                         'glow': '0 0 40px -10px rgba(249, 115, 22, 0.35)',
@@ -99,56 +124,60 @@
         }
     </script>
     
+    <!-- tokens.css ANTES de styles.css: o segundo consome as variáveis do primeiro. -->
+    <link rel="stylesheet" href="src/css/tokens.css">
     <link rel="stylesheet" href="src/css/styles.css">
 </head>
-<body class="min-h-screen bg-zinc-950 text-zinc-100 antialiased selection:bg-orange-500/30 selection:text-orange-100">
-    <div id="bgGradient" class="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(249,115,22,0.12),transparent)]"></div>
+<body class="min-h-screen antialiased">
+    <div id="bgGradient" class="bg-glow"></div>
 
-    <section id="landingScreen" class="theme-landing fixed inset-0 z-[55] hidden flex-col overflow-y-auto bg-zinc-950/98 backdrop-blur-md" aria-label="Apresentação do WeightChartS">
+    <section id="landingScreen" class="theme-landing fixed inset-0 z-[55] hidden flex-col overflow-y-auto" aria-label="Apresentação do WeightChartS">
         <div class="flex min-h-full flex-col items-center justify-center px-5 py-10 sm:py-14 max-w-lg mx-auto w-full">
             <div class="flex items-center gap-3 mb-6">
                 <img src="src/icons/weight-chart-icon.svg" alt="" class="w-14 h-14 drop-shadow-[0_0_16px_rgba(249,115,22,0.45)]" width="56" height="56">
                 <div class="text-left">
-                    <h1 class="text-3xl font-bold tracking-tight text-white">Weight<span class="text-orange-500">Chart</span>S</h1>
-                    <p class="text-sm text-zinc-400 mt-0.5">Peso com clareza, no celular ou no PC</p>
+                    <h1 class="brand text-3xl">Weight<span class="brand-accent">Chart</span>S</h1>
+                    <p class="text-sm t-dim mt-0.5">Peso com clareza, no celular ou no PC</p>
                 </div>
             </div>
 
-            <p class="text-zinc-300 text-center leading-relaxed mb-8 text-[15px] sm:text-base">
-                Registre seu peso ao longo do tempo, veja a <strong class="text-orange-400 font-semibold">evolução num gráfico</strong> e mantenha os dados sincronizados na nuvem com a sua conta — ideal para acompanhar objetivos com consistência.
+            <p class="t-dim text-center leading-relaxed mb-8 text-[15px] sm:text-base">
+                Registre seu peso ao longo do tempo, veja a <strong class="t-accent font-semibold">evolução num gráfico</strong> e mantenha os dados sincronizados na nuvem com a sua conta — ideal para acompanhar objetivos com consistência.
             </p>
 
-            <ul class="w-full space-y-3 mb-10 text-left text-sm text-zinc-400">
+            <ul class="w-full space-y-3 mb-10 text-left text-sm t-dim">
                 <li class="flex gap-3 items-start">
-                    <span class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-orange-500/15 text-orange-400 text-xs font-bold">1</span>
-                    <span><strong class="text-zinc-200">Registro rápido</strong> — adicione peso em segundos, com data automática.</span>
+                    <span class="step-num mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs">1</span>
+                    <span><strong class="t-strong">Registro rápido</strong> — adicione peso em segundos, com data automática.</span>
                 </li>
                 <li class="flex gap-3 items-start">
-                    <span class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-orange-500/15 text-orange-400 text-xs font-bold">2</span>
-                    <span><strong class="text-zinc-200">Gráfico e estatísticas</strong> — visualize tendências e mantenha a motivação.</span>
+                    <span class="step-num mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs">2</span>
+                    <span><strong class="t-strong">Gráfico e estatísticas</strong> — visualize tendências e mantenha a motivação.</span>
                 </li>
                 <li class="flex gap-3 items-start">
-                    <span class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-orange-500/15 text-orange-400 text-xs font-bold">3</span>
-                    <span><strong class="text-zinc-200">Conta segura</strong> — faça login para salvar os dados no Firebase.</span>
+                    <span class="step-num mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs">3</span>
+                    <span><strong class="t-strong">Conta segura</strong> — faça login para salvar os dados no Firebase.</span>
                 </li>
             </ul>
 
-            <button type="button" id="btnStartApp" class="w-full max-w-sm rounded-2xl bg-orange-500 py-4 px-6 text-lg font-semibold text-white shadow-lg shadow-orange-500/30 transition hover:bg-orange-400 active:scale-[0.99] mb-12">
+            <button type="button" id="btnStartApp" class="btn-primary w-full max-w-sm py-4 px-6 text-lg mb-3">
                 Iniciar
             </button>
 
-            <div class="mt-auto pt-4 border-t border-zinc-800/80 w-full">
-                <p class="text-center text-xs text-zinc-500 mb-4">Fernando Garcia Rangel</p>
+            <a href="https://apps-hub-beta.vercel.app" class="btn-back w-full max-w-sm justify-center mb-12" aria-label="Voltar para o portal de apps">← Voltar para Apps</a>
+
+            <div class="divider-top mt-auto pt-4 w-full">
+                <p class="text-center text-xs t-dim mb-4">Fernando Garcia Rangel</p>
                 <nav class="flex flex-wrap justify-center gap-4 sm:gap-6" aria-label="Redes sociais">
-                    <a id="socialGitHub" href="https://github.com/fernandogarciarangel" target="_blank" rel="noopener noreferrer" class="landing-social-link inline-flex items-center gap-2 text-sm text-zinc-400 hover:text-orange-400 transition-colors">
+                    <a id="socialGitHub" href="https://github.com/fernandogarciarangel" target="_blank" rel="noopener noreferrer" class="landing-social-link inline-flex items-center gap-2 text-sm">
                         <svg class="w-5 h-5 opacity-90" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
                         GitHub
                     </a>
-                    <a id="socialLinkedIn" href="https://www.linkedin.com/in/fernandograngel" target="_blank" rel="noopener noreferrer" class="landing-social-link inline-flex items-center gap-2 text-sm text-zinc-400 hover:text-orange-400 transition-colors">
+                    <a id="socialLinkedIn" href="https://www.linkedin.com/in/fernandograngel" target="_blank" rel="noopener noreferrer" class="landing-social-link inline-flex items-center gap-2 text-sm">
                         <svg class="w-5 h-5 opacity-90" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
                         LinkedIn
                     </a>
-                    <a id="socialInstagram" href="https://www.instagram.com/fernandogarciarangell" target="_blank" rel="noopener noreferrer" class="landing-social-link inline-flex items-center gap-2 text-sm text-zinc-400 hover:text-orange-400 transition-colors">
+                    <a id="socialInstagram" href="https://www.instagram.com/fernandogarciarangell" target="_blank" rel="noopener noreferrer" class="landing-social-link inline-flex items-center gap-2 text-sm">
                         <svg class="w-5 h-5 opacity-90" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
                         Instagram
                     </a>
@@ -157,324 +186,354 @@
         </div>
     </section>
 
-    <header id="siteHeader" class="relative z-40 sticky top-0 border-b border-zinc-800/80 bg-zinc-950/90 shadow-glow backdrop-blur-md">
+    <header id="siteHeader" class="site-header relative z-40 sticky top-0">
         <div class="px-4 py-3">
             <div class="flex justify-center items-center mb-2">
                 <img src="src/icons/weight-chart-icon.svg" alt="" class="w-10 h-10 mr-3 drop-shadow-[0_0_12px_rgba(249,115,22,0.4)]" width="40" height="40">
-                <h1 class="text-2xl font-bold tracking-tight text-white">Weight<span class="text-orange-500">Chart</span>S</h1>
+                <h1 class="brand text-2xl">Weight<span class="brand-accent">Chart</span>S</h1>
             </div>
-            <p class="text-sm text-zinc-400 text-center">Acompanhamento de peso</p>
-            
+            <p class="text-sm t-dim text-center">Acompanhamento de peso</p>
+
             <div class="flex flex-wrap justify-center items-center gap-x-3 gap-y-1 mt-2">
-                <span id="authStatus" class="text-sm font-medium text-zinc-400">⏳ Conectando...</span>
-                <span id="userInfo" class="text-xs text-zinc-500">Inicializando...</span>
-                <button type="button" id="btnTheme" class="hidden rounded-lg bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-200 border border-zinc-700 hover:bg-zinc-700 hover:border-orange-500/50 transition-colors" title="Alternar tema claro ou escuro" aria-pressed="false">
-                    Tema claro
-                </button>
-                <button type="button" id="btnLogout" class="hidden rounded-lg bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-200 border border-zinc-700 hover:bg-zinc-700 hover:border-orange-500/50 transition-colors">
-                    Sair
-                </button>
+                <span id="authStatus" class="auth-status text-sm font-semibold t-dim">⏳ Conectando...</span>
+                <span id="userInfo" class="user-info text-xs">Inicializando...</span>
+                <!-- Os três controles num grupo próprio: com 5 itens soltos a linha
+                     quebrava onde calhava e deixava o "Sair" órfão a 375px. -->
+                <div class="flex flex-wrap justify-center items-center gap-2">
+                    <!-- Volta para o portal. Link e na mesma aba de propósito: instalado
+                         como PWA não existe aba do hub por trás (ver btn-back na spec). -->
+                    <a href="https://apps-hub-beta.vercel.app" class="btn-back" aria-label="Voltar para o portal de apps">← Apps</a>
+                    <button type="button" id="btnTheme" class="btn-chip hidden" title="Alternar tema claro ou escuro" aria-pressed="false">
+                        Tema claro
+                    </button>
+                    <button type="button" id="btnLogout" class="btn-chip hidden">
+                        Sair
+                    </button>
+                </div>
             </div>
         </div>
     </header>
 
-    <div id="authScreen" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-label="Iniciar sessão ou criar conta">
-        <div class="theme-auth-panel w-full max-w-md rounded-2xl border border-zinc-700/80 bg-zinc-900 p-6 shadow-2xl shadow-black/50 ring-1 ring-orange-500/10">
+    <div id="authScreen" class="scrim fixed inset-0 z-50 hidden flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Iniciar sessão ou criar conta">
+        <div class="panel w-full max-w-md p-6">
             <div id="loginForm" class="space-y-4">
-                <h2 class="text-2xl font-bold text-center text-white">Entrar</h2>
-                
+                <h2 class="card-title text-2xl text-center">Entrar</h2>
+
                 <div>
-                    <label for="loginEmail" class="block text-sm font-medium text-zinc-400 mb-2">Email</label>
-                    <input type="email" id="loginEmail" class="w-full rounded-xl border border-zinc-600 bg-zinc-900/80 p-3 text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20" placeholder="seu@email.com">
+                    <label for="loginEmail" class="field-label block text-sm mb-2">Email</label>
+                    <input type="email" id="loginEmail" class="input-row w-full p-3" placeholder="seu@email.com">
                 </div>
-                
+
                 <div>
-                    <label for="loginPassword" class="block text-sm font-medium text-zinc-400 mb-2">Senha</label>
-                    <input type="password" id="loginPassword" class="w-full rounded-xl border border-zinc-600 bg-zinc-900/80 p-3 text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20" placeholder="••••••••">
+                    <label for="loginPassword" class="field-label block text-sm mb-2">Senha</label>
+                    <input type="password" id="loginPassword" class="input-row w-full p-3" placeholder="••••••••">
                 </div>
-                
-                <button type="button" id="btnLogin" class="w-full rounded-xl bg-orange-500 py-3 px-4 font-semibold text-white shadow-lg shadow-orange-500/25 transition hover:bg-orange-400 active:scale-[0.99]">
+
+                <button type="button" id="btnLogin" class="btn-primary w-full py-3 px-4">
                     Entrar
                 </button>
-                
+
                 <div class="text-center">
-                    <button type="button" id="btnShowRegister" class="text-sm text-orange-400 hover:text-orange-300 transition-colors">
+                    <button type="button" id="btnShowRegister" class="btn-link text-sm">
                         Não tem conta? Registre-se
                     </button>
                 </div>
-                
+
                 <div class="text-center">
-                    <button type="button" id="btnForgotPassword" class="text-sm text-zinc-500 hover:text-zinc-400 transition-colors">
+                    <button type="button" id="btnForgotPassword" class="btn-ghost text-sm">
                         Esqueceu a senha?
                     </button>
                 </div>
             </div>
-            
+
             <div id="registerForm" class="space-y-4 hidden">
-                <h2 class="text-2xl font-bold text-center text-white">Criar conta</h2>
-                
+                <h2 class="card-title text-2xl text-center">Criar conta</h2>
+
                 <div>
-                    <label for="registerName" class="block text-sm font-medium text-zinc-400 mb-2">Nome</label>
-                    <input type="text" id="registerName" class="w-full rounded-xl border border-zinc-600 bg-zinc-900/80 p-3 text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20" placeholder="Seu nome">
+                    <label for="registerName" class="field-label block text-sm mb-2">Nome</label>
+                    <input type="text" id="registerName" class="input-row w-full p-3" placeholder="Seu nome">
                 </div>
-                
+
                 <div>
-                    <label for="registerEmail" class="block text-sm font-medium text-zinc-400 mb-2">Email</label>
-                    <input type="email" id="registerEmail" class="w-full rounded-xl border border-zinc-600 bg-zinc-900/80 p-3 text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20" placeholder="seu@email.com">
+                    <label for="registerEmail" class="field-label block text-sm mb-2">Email</label>
+                    <input type="email" id="registerEmail" class="input-row w-full p-3" placeholder="seu@email.com">
                 </div>
-                
+
                 <div>
-                    <label for="registerPassword" class="block text-sm font-medium text-zinc-400 mb-2">Senha</label>
-                    <input type="password" id="registerPassword" class="w-full rounded-xl border border-zinc-600 bg-zinc-900/80 p-3 text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20" placeholder="••••••••">
+                    <label for="registerPassword" class="field-label block text-sm mb-2">Senha</label>
+                    <input type="password" id="registerPassword" class="input-row w-full p-3" placeholder="••••••••">
                 </div>
-                
-                <button type="button" id="btnRegister" class="w-full rounded-xl bg-orange-500 py-3 px-4 font-semibold text-white shadow-lg shadow-orange-500/25 transition hover:bg-orange-400 active:scale-[0.99]">
+
+                <button type="button" id="btnRegister" class="btn-primary w-full py-3 px-4">
                     Criar conta
                 </button>
-                
+
                 <div class="text-center">
-                    <button type="button" id="btnShowLogin" class="text-sm text-orange-400 hover:text-orange-300 transition-colors">
+                    <button type="button" id="btnShowLogin" class="btn-link text-sm">
                         Já tem conta? Entre aqui
                     </button>
                 </div>
             </div>
-            
+
             <div id="forgotPasswordForm" class="space-y-4 hidden">
-                <h2 class="text-2xl font-bold text-center text-white">Redefinir senha</h2>
-                
-                <p class="text-zinc-400 text-center text-sm">Digite seu email para receber um link de redefinição</p>
-                
+                <h2 class="card-title text-2xl text-center">Redefinir senha</h2>
+
+                <p class="t-dim text-center text-sm">Digite seu email para receber um link de redefinição</p>
+
                 <div>
-                    <label for="resetEmail" class="block text-sm font-medium text-zinc-400 mb-2">Email</label>
-                    <input type="email" id="resetEmail" class="w-full rounded-xl border border-zinc-600 bg-zinc-900/80 p-3 text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20" placeholder="seu@email.com">
+                    <label for="resetEmail" class="field-label block text-sm mb-2">Email</label>
+                    <input type="email" id="resetEmail" class="input-row w-full p-3" placeholder="seu@email.com">
                 </div>
-                
-                <button type="button" id="btnResetPassword" class="w-full rounded-xl bg-orange-600 py-3 px-4 font-semibold text-white shadow-lg shadow-orange-600/20 transition hover:bg-orange-500 active:scale-[0.99]">
+
+                <button type="button" id="btnResetPassword" class="btn-primary w-full py-3 px-4">
                     Enviar email
                 </button>
-                
+
                 <div class="text-center">
-                    <button type="button" id="btnBackToLogin" class="text-sm text-orange-400 hover:text-orange-300 transition-colors">
+                    <button type="button" id="btnBackToLogin" class="btn-link text-sm">
                         Voltar ao login
                     </button>
                 </div>
+            </div>
+
+            <!-- Fora dos três formulários de propósito: dentro de um deles sumiria
+                 ao alternar entre entrar / criar conta / redefinir. E dentro do
+                 #authScreen, para ficar sob o aria-modal do diálogo — um elemento
+                 flutuante por cima some para leitor de tela. -->
+            <div class="divider-top mt-5 pt-4">
+                <a href="https://apps-hub-beta.vercel.app" class="btn-back w-full justify-center" aria-label="Voltar para o portal de apps">← Voltar para Apps</a>
             </div>
         </div>
     </div>
 
     <main class="relative z-10 p-4 space-y-4 max-w-lg mx-auto w-full">
-        <div class="theme-card rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 backdrop-blur-sm shadow-xl shadow-black/20">
-            <h2 class="text-lg font-semibold mb-2 text-white flex items-center gap-2">
-                <span class="inline-block h-2 w-2 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.8)]"></span>
+        <div class="card p-4">
+            <h2 class="card-title text-lg mb-2 flex items-center gap-2">
+                <span class="dot inline-block h-2 w-2 rounded-full"></span>
                 Registrar peso
             </h2>
-            <p id="periodoResumo" class="text-sm text-zinc-400 mb-4 text-center leading-relaxed"></p>
+            <p id="periodoResumo" class="text-sm t-dim mb-4 text-center leading-relaxed"></p>
 
             <div class="space-y-4">
                 <div>
-                    <label for="peso" class="block text-sm font-medium text-zinc-400 mb-2">Peso (kg)</label>
+                    <label for="peso" class="field-label block text-sm mb-2">Peso (kg)</label>
                     <input type="text" inputmode="decimal" id="peso" autocomplete="off"
-                           class="w-full rounded-xl border border-zinc-600 bg-zinc-900/80 p-4 text-center text-lg text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+                           class="input-row w-full p-4 text-center text-lg"
                            placeholder="0,0">
                 </div>
-                <button type="button" id="btnOutraData" class="text-sm font-medium text-orange-400 hover:text-orange-300 transition-colors">
+                <button type="button" id="btnOutraData" class="btn-link text-sm">
                     Registrar em outra data
                 </button>
                 <div id="dataRegistroWrapper" class="hidden">
                     <div class="flex items-center justify-between mb-2">
-                        <label for="dataRegistro" class="block text-sm font-medium text-zinc-400">Data do registro</label>
-                        <button type="button" id="btnDataHoje" class="text-xs text-zinc-400 hover:text-zinc-200 transition-colors">Voltar para hoje</button>
+                        <label for="dataRegistro" class="field-label block text-sm">Data do registro</label>
+                        <button type="button" id="btnDataHoje" class="btn-ghost text-xs">Voltar para hoje</button>
                     </div>
                     <input type="date" id="dataRegistro"
-                           class="theme-date-input w-full rounded-xl border border-zinc-600 bg-zinc-900/80 p-3 text-center text-base text-zinc-100 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20">
+                           class="theme-date-input input-row w-full p-3 text-center text-base">
                 </div>
-                <button type="button" id="btnAdicionar" class="w-full rounded-xl bg-orange-500 py-4 px-6 text-lg font-semibold text-white shadow-lg shadow-orange-500/30 transition hover:bg-orange-400 active:scale-[0.99]">
+                <button type="button" id="btnAdicionar" class="btn-primary w-full py-4 px-6 text-lg">
                     Adicionar registro
                 </button>
             </div>
         </div>
 
-        <div class="theme-card rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 backdrop-blur-sm shadow-xl shadow-black/20">
-            <h2 class="text-lg font-semibold mb-1 text-white">Seus registros</h2>
-            <p class="text-xs text-zinc-500 mb-3">Os mais recentes — corrija o valor ou exclua se errou ao registrar.</p>
-            <p id="listaRegistrosVazia" class="text-sm text-zinc-500 py-2 hidden">Ainda não há registros.</p>
-            <ul id="listaRegistros" class="divide-y divide-zinc-800/80 rounded-lg border border-zinc-800/80 overflow-hidden" aria-label="Registros de peso mais recentes"></ul>
-            <button type="button" id="btnVerTodos" class="hidden mt-3 w-full rounded-lg border border-zinc-700 bg-zinc-800/60 py-2.5 text-sm font-medium text-zinc-200 hover:border-orange-500/50 hover:bg-zinc-800 transition-colors">Ver todos</button>
+        <div class="card p-4">
+            <h2 class="card-title text-lg mb-1">Seus registros</h2>
+            <p class="text-xs card-sub mb-3">Os mais recentes — corrija o valor ou exclua se errou ao registrar.</p>
+            <p id="listaRegistrosVazia" class="empty-note text-sm py-2 hidden">Ainda não há registros.</p>
+            <ul id="listaRegistros" class="list-box" aria-label="Registros de peso mais recentes"></ul>
+            <button type="button" id="btnVerTodos" class="btn-secondary hidden mt-3 w-full py-2.5 text-sm">Ver todos</button>
         </div>
 
-        <div class="theme-card rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 backdrop-blur-sm shadow-xl shadow-black/20">
-            <h3 class="text-lg font-semibold mb-1 text-white">Meta de peso</h3>
-            <p class="text-xs text-zinc-500 mb-3">Defina um alvo para acompanhar o progresso no gráfico.</p>
+        <div class="card p-4">
+            <h3 class="card-title text-lg mb-1">Meta de peso</h3>
+            <p class="text-xs card-sub mb-3">Defina um alvo para acompanhar o progresso no gráfico.</p>
             <div class="flex gap-2">
                 <input type="text" inputmode="decimal" id="metaInput" autocomplete="off" placeholder="Ex.: 80,0"
-                       class="flex-1 min-w-0 rounded-xl border border-zinc-600 bg-zinc-900/80 p-3 text-center text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20">
-                <button type="button" id="btnDefinirMeta" class="shrink-0 rounded-xl bg-orange-500 px-4 text-sm font-semibold text-white hover:bg-orange-400">Definir</button>
-                <button type="button" id="btnRemoverMeta" class="hidden shrink-0 rounded-xl border border-zinc-600 px-4 text-sm font-medium text-zinc-300 hover:bg-zinc-800">Remover</button>
+                       class="input-row flex-1 min-w-0 p-3 text-center">
+                <button type="button" id="btnDefinirMeta" class="btn-primary shrink-0 px-4 text-sm">Definir</button>
+                <button type="button" id="btnRemoverMeta" class="btn-secondary hidden shrink-0 px-4 text-sm">Remover</button>
             </div>
-            <p id="metaProgresso" class="hidden text-sm text-zinc-300 mt-3"></p>
+            <p id="metaProgresso" class="hidden text-sm t-dim mt-3"></p>
         </div>
 
-        <div id="cardPerfilPublico" class="hidden theme-card rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 backdrop-blur-sm shadow-xl shadow-black/20">
+        <div id="cardPerfilPublico" class="hidden card p-4">
             <div class="flex items-start justify-between gap-3">
                 <div>
-                    <h3 class="text-lg font-semibold text-white">Perfil público</h3>
-                    <p id="perfilPublicoEstado" class="text-xs text-zinc-500 mt-1">Seu perfil está privado.</p>
+                    <h3 class="card-title text-lg">Perfil público</h3>
+                    <p id="perfilPublicoEstado" class="text-xs card-sub mt-1">Seu perfil está privado.</p>
                 </div>
                 <button type="button" id="btnTogglePublico" role="switch" aria-checked="false" aria-label="Tornar perfil público"
-                        class="relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border border-zinc-600 bg-zinc-700 transition-colors">
-                    <span id="togglePublicoKnob" class="inline-block h-5 w-5 translate-x-1 transform rounded-full bg-white transition-transform"></span>
+                        class="toggle relative inline-flex h-7 w-12 shrink-0 items-center">
+                    <span id="togglePublicoKnob" class="toggle-knob inline-block h-5 w-5 rounded-full"></span>
                 </button>
             </div>
-            <button type="button" id="btnExplorar" class="mt-3 w-full rounded-lg border border-zinc-700 bg-zinc-800/60 py-2.5 text-sm font-medium text-zinc-200 hover:border-orange-500/50 hover:bg-zinc-800 transition-colors">
+            <button type="button" id="btnExplorar" class="btn-secondary mt-3 w-full py-2.5 text-sm">
                 Explorar perfis
             </button>
         </div>
 
-        <div class="theme-card rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 backdrop-blur-sm shadow-xl shadow-black/20">
+        <div class="card p-4">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
-                <h2 class="text-lg font-semibold text-white">Evolução do peso</h2>
+                <h2 class="card-title text-lg">Evolução do peso</h2>
                 <div class="flex flex-wrap gap-2">
-                    <button type="button" id="btnExportarImagem" class="rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 hover:border-orange-500/40 hover:bg-zinc-700 transition-colors">
+                    <button type="button" id="btnExportarImagem" class="btn-chip px-3 py-2 text-sm">
                         Imagem
                     </button>
-                    <button type="button" id="btnExportar" class="rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 hover:border-orange-500/40 hover:bg-zinc-700 transition-colors">
+                    <button type="button" id="btnExportar" class="btn-chip px-3 py-2 text-sm">
                         Exportar
                     </button>
-                    <button type="button" id="btnImportar" class="rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 hover:border-orange-500/40 hover:bg-zinc-700 transition-colors">
+                    <button type="button" id="btnImportar" class="btn-chip px-3 py-2 text-sm">
                         Importar
                     </button>
-                    <button type="button" id="btnLimpar" class="rounded-lg border border-red-900/50 bg-red-950/40 px-3 py-2 text-sm text-red-300 hover:bg-red-950/70 transition-colors">
+                    <button type="button" id="btnLimpar" class="btn-chip-danger px-3 py-2 text-sm">
                         Limpar
                     </button>
                 </div>
             </div>
             <div id="filtroPeriodo" class="flex flex-wrap gap-1.5 mb-3" role="group" aria-label="Período do gráfico">
-                <button type="button" class="range-btn rounded-lg border border-zinc-700 bg-zinc-800/60 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:border-orange-500/40" data-range="30">30 dias</button>
-                <button type="button" class="range-btn rounded-lg border border-zinc-700 bg-zinc-800/60 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:border-orange-500/40" data-range="90">90 dias</button>
-                <button type="button" class="range-btn rounded-lg border border-zinc-700 bg-zinc-800/60 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:border-orange-500/40" data-range="365">1 ano</button>
-                <button type="button" class="range-btn rounded-lg border border-zinc-700 bg-zinc-800/60 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:border-orange-500/40" data-range="all">Tudo</button>
+                <button type="button" class="range-btn px-3 py-1.5" data-range="30">30 dias</button>
+                <button type="button" class="range-btn px-3 py-1.5" data-range="90">90 dias</button>
+                <button type="button" class="range-btn px-3 py-1.5" data-range="365">1 ano</button>
+                <button type="button" class="range-btn px-3 py-1.5" data-range="all">Tudo</button>
             </div>
             <div class="relative w-full min-h-[340px] h-[400px] sm:min-h-[380px] sm:h-[440px]">
                 <canvas id="graficoPeso"></canvas>
                 <div id="graficoVazio" class="hidden absolute inset-0 flex flex-col items-center justify-center text-center px-4 pointer-events-none">
-                    <p class="text-zinc-400 text-sm">Ainda não há registros.</p>
-                    <p class="text-zinc-500 text-xs mt-1">Adicione seu primeiro peso acima para ver a evolução.</p>
+                    <p class="t-dim text-sm">Ainda não há registros.</p>
+                    <p class="empty-note text-xs mt-1">Adicione seu primeiro peso acima para ver a evolução.</p>
                 </div>
             </div>
         </div>
 
-        <div class="theme-card rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 backdrop-blur-sm shadow-xl shadow-black/20">
-            <h3 class="text-lg font-semibold mb-3 text-white">Estatísticas</h3>
+        <div class="card p-4">
+            <h3 class="card-title text-lg mb-3">Estatísticas</h3>
             <div class="grid grid-cols-2 gap-3 mb-3">
-                <div class="text-center rounded-xl border border-orange-500/20 bg-orange-500/10 p-4">
-                    <div class="text-2xl font-bold text-orange-400" id="pesoAtual">--</div>
-                    <div class="text-sm text-zinc-400">Peso atual</div>
-                    <div class="text-xs text-zinc-400 mt-1" id="pesoDelta"></div>
+                <div class="stat-accent text-center p-4">
+                    <div class="stat-num-accent" id="pesoAtual">--</div>
+                    <div class="stat-label text-sm">Peso atual</div>
+                    <div class="stat-label text-xs mt-1" id="pesoDelta"></div>
                 </div>
-                <div class="text-center rounded-xl border border-zinc-700 bg-zinc-800/50 p-4">
-                    <div class="text-2xl font-bold text-zinc-100" id="totalRegistros">0</div>
-                    <div class="text-sm text-zinc-400">Registros</div>
+                <div class="stat text-center p-4">
+                    <div class="stat-num" id="totalRegistros">0</div>
+                    <div class="stat-label text-sm">Registros</div>
                 </div>
             </div>
             <div class="grid grid-cols-3 gap-2 text-center">
-                <div class="rounded-lg border border-zinc-800 bg-zinc-900/50 p-2.5">
-                    <div class="text-sm font-semibold text-zinc-200" id="stat7">–</div>
-                    <div class="text-[11px] text-zinc-500">7 dias</div>
+                <div class="stat p-2.5">
+                    <div class="text-sm font-bold t-strong" id="stat7">–</div>
+                    <div class="stat-label text-[11px]">7 dias</div>
                 </div>
-                <div class="rounded-lg border border-zinc-800 bg-zinc-900/50 p-2.5">
-                    <div class="text-sm font-semibold text-zinc-200" id="stat30">–</div>
-                    <div class="text-[11px] text-zinc-500">30 dias</div>
+                <div class="stat p-2.5">
+                    <div class="text-sm font-bold t-strong" id="stat30">–</div>
+                    <div class="stat-label text-[11px]">30 dias</div>
                 </div>
-                <div class="rounded-lg border border-zinc-800 bg-zinc-900/50 p-2.5">
-                    <div class="text-sm font-semibold text-zinc-200" id="statMedia">–</div>
-                    <div class="text-[11px] text-zinc-500">Média</div>
+                <div class="stat p-2.5">
+                    <div class="text-sm font-bold t-strong" id="statMedia">–</div>
+                    <div class="stat-label text-[11px]">Média</div>
                 </div>
             </div>
             <div class="grid grid-cols-3 gap-2 text-center mt-2">
-                <div class="rounded-lg border border-zinc-800 bg-zinc-900/50 p-2.5">
-                    <div class="text-sm font-semibold text-zinc-200" id="statMin">–</div>
-                    <div class="text-[11px] text-zinc-500">Mínimo</div>
+                <div class="stat p-2.5">
+                    <div class="text-sm font-bold t-strong" id="statMin">–</div>
+                    <div class="stat-label text-[11px]">Mínimo</div>
                 </div>
-                <div class="rounded-lg border border-zinc-800 bg-zinc-900/50 p-2.5">
-                    <div class="text-sm font-semibold text-zinc-200" id="statMax">–</div>
-                    <div class="text-[11px] text-zinc-500">Máximo</div>
+                <div class="stat p-2.5">
+                    <div class="text-sm font-bold t-strong" id="statMax">–</div>
+                    <div class="stat-label text-[11px]">Máximo</div>
                 </div>
-                <div class="rounded-lg border border-orange-500/20 bg-orange-500/5 p-2.5">
-                    <div class="text-sm font-semibold text-orange-400" id="statMeta">–</div>
-                    <div class="text-[11px] text-zinc-500">Para a meta</div>
+                <div class="stat-accent p-2.5">
+                    <div class="text-sm font-bold t-accent" id="statMeta">–</div>
+                    <div class="stat-label text-[11px]">Para a meta</div>
                 </div>
             </div>
         </div>
 
-        <footer class="text-center py-6 text-zinc-500 text-sm">
+        <footer class="site-footer text-center py-6 text-sm">
             <div class="flex justify-center items-center mb-2 gap-2">
                 <img src="src/icons/weight-chart-icon.svg" alt="" class="w-6 h-6 opacity-80" width="24" height="24">
-                <p class="text-zinc-400">WeightChartS — Fernando Garcia Rangel</p>
+                <p>WeightChartS — Fernando Garcia Rangel</p>
             </div>
         </footer>
     </main>
 
-    <div id="modalRegistros" class="fixed inset-0 z-[58] hidden flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="modalRegistrosTitulo">
-        <div class="theme-auth-panel w-full max-w-md rounded-2xl border border-zinc-700 bg-zinc-900 shadow-2xl ring-1 ring-orange-500/10 flex flex-col max-h-[80vh]">
-            <div class="flex items-center justify-between p-5 pb-3 border-b border-zinc-800">
-                <h3 id="modalRegistrosTitulo" class="text-lg font-semibold text-white">Seus registros</h3>
-                <button type="button" id="btnFecharRegistros" class="rounded-lg px-2 py-1 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800" aria-label="Fechar">✕</button>
+    <div id="modalRegistros" class="scrim fixed inset-0 z-[58] hidden flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="modalRegistrosTitulo">
+        <div class="panel w-full max-w-md flex flex-col max-h-[80vh]">
+            <div class="modal-head flex items-center justify-between p-5 pb-3">
+                <h3 id="modalRegistrosTitulo" class="card-title text-lg">Seus registros</h3>
+                <button type="button" id="btnFecharRegistros" class="icon-btn px-2 py-1" aria-label="Fechar">✕</button>
             </div>
-            <ul id="listaRegistrosTodos" class="flex-1 min-h-0 divide-y divide-zinc-800/80 overflow-y-auto p-2" aria-label="Todos os registros de peso"></ul>
+            <ul id="listaRegistrosTodos" class="flex-1 min-h-0 overflow-y-auto p-2" aria-label="Todos os registros de peso"></ul>
         </div>
     </div>
 
-    <div id="modalExplorar" class="fixed inset-0 z-[59] hidden flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="modalExplorarTitulo">
-        <div class="theme-auth-panel w-full max-w-md rounded-2xl border border-zinc-700 bg-zinc-900 shadow-2xl ring-1 ring-orange-500/10 flex flex-col max-h-[85vh]">
-            <div class="flex items-center justify-between p-5 pb-3 border-b border-zinc-800">
-                <h3 id="modalExplorarTitulo" class="text-lg font-semibold text-white">Explorar perfis</h3>
-                <button type="button" id="btnFecharExplorar" class="rounded-lg px-2 py-1 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800" aria-label="Fechar">✕</button>
+    <div id="modalExplorar" class="scrim fixed inset-0 z-[59] hidden flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="modalExplorarTitulo">
+        <div class="panel w-full max-w-md flex flex-col max-h-[85vh]">
+            <div class="modal-head flex items-center justify-between p-5 pb-3">
+                <h3 id="modalExplorarTitulo" class="card-title text-lg">Explorar perfis</h3>
+                <button type="button" id="btnFecharExplorar" class="icon-btn px-2 py-1" aria-label="Fechar">✕</button>
             </div>
 
             <div id="explorarLista" class="flex-1 min-h-0 overflow-y-auto p-2">
-                <p id="explorarVazio" class="hidden text-sm text-zinc-500 p-4 text-center">Nenhum perfil público no momento.</p>
-                <p id="explorarErro" class="hidden text-sm text-red-400 p-4 text-center">Não foi possível carregar os perfis. Verifique sua conexão e tente novamente.</p>
-                <ul id="explorarPerfis" class="divide-y divide-zinc-800/80" aria-label="Perfis públicos"></ul>
+                <p id="explorarVazio" class="empty-note hidden text-sm p-4 text-center">Nenhum perfil público no momento.</p>
+                <p id="explorarErro" class="t-danger hidden text-sm p-4 text-center">Não foi possível carregar os perfis. Verifique sua conexão e tente novamente.</p>
+                <ul id="explorarPerfis" aria-label="Perfis públicos"></ul>
             </div>
 
             <div id="explorarDetalhe" class="hidden flex-1 min-h-0 flex flex-col p-4">
-                <button type="button" id="btnVoltarExplorar" class="self-start mb-2 text-sm text-orange-400 hover:text-orange-300">← Voltar</button>
-                <h4 id="explorarPerfilNome" class="text-base font-semibold text-white mb-3"></h4>
+                <button type="button" id="btnVoltarExplorar" class="btn-link self-start mb-2 text-sm">← Voltar</button>
+                <h4 id="explorarPerfilNome" class="card-title text-base mb-3"></h4>
                 <div class="relative w-full min-h-[300px] h-[340px]">
                     <canvas id="graficoPerfil"></canvas>
                     <div id="graficoPerfilVazio" class="hidden absolute inset-0 flex items-center justify-center text-center px-4 pointer-events-none">
-                        <p class="text-zinc-500 text-sm">Este perfil ainda não tem registros.</p>
+                        <p class="empty-note text-sm">Este perfil ainda não tem registros.</p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div id="modalConfirmar" class="fixed inset-0 z-[62] hidden flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="modalConfirmarTitulo">
-        <div class="theme-auth-panel w-full max-w-sm rounded-2xl border border-zinc-700 bg-zinc-900 p-5 shadow-2xl ring-1 ring-red-500/10">
-            <h3 id="modalConfirmarTitulo" class="text-lg font-semibold text-white mb-1">Confirmar</h3>
-            <p id="modalConfirmarMensagem" class="text-sm text-zinc-400 mb-4"></p>
+    <div id="modalConfirmar" class="scrim fixed inset-0 z-[62] hidden flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="modalConfirmarTitulo">
+        <div class="panel w-full max-w-sm p-5">
+            <h3 id="modalConfirmarTitulo" class="card-title text-lg mb-1">Confirmar</h3>
+            <p id="modalConfirmarMensagem" class="text-sm t-dim mb-4"></p>
             <div class="flex gap-2">
-                <button type="button" id="btnConfirmarCancelar" class="flex-1 rounded-xl border border-zinc-600 py-2.5 text-sm font-medium text-zinc-300 hover:bg-zinc-800">Cancelar</button>
-                <button type="button" id="btnConfirmarOk" class="flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white hover:bg-red-500">Excluir</button>
+                <button type="button" id="btnConfirmarCancelar" class="btn-secondary flex-1 py-2.5 text-sm">Cancelar</button>
+                <button type="button" id="btnConfirmarOk" class="btn-danger flex-1 py-2.5 text-sm">Excluir</button>
             </div>
         </div>
     </div>
 
-    <div id="modalEditarPeso" class="fixed inset-0 z-[60] hidden flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="modalEditarPesoTitulo">
-        <div class="theme-auth-panel w-full max-w-sm rounded-2xl border border-zinc-700 bg-zinc-900 p-5 shadow-2xl ring-1 ring-orange-500/10">
-            <h3 id="modalEditarPesoTitulo" class="text-lg font-semibold text-white mb-1">Corrigir registro</h3>
-            <p id="editarPesoContexto" class="text-sm text-zinc-400 mb-4"></p>
-            <label for="editarPesoValor" class="block text-xs font-medium text-zinc-500 mb-1.5">Peso (kg)</label>
-            <input type="text" inputmode="decimal" id="editarPesoValor" autocomplete="off" class="w-full rounded-xl border border-zinc-600 bg-zinc-950/80 p-3 text-center text-lg text-zinc-100 mb-4 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20">
-            <label for="editarDataValor" class="block text-xs font-medium text-zinc-500 mb-1.5">Data</label>
-            <input type="date" id="editarDataValor" class="theme-date-input w-full rounded-xl border border-zinc-600 bg-zinc-950/80 p-3 text-center text-base text-zinc-100 mb-4 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20">
+    <div id="modalEditarPeso" class="scrim fixed inset-0 z-[60] hidden flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="modalEditarPesoTitulo">
+        <div class="panel w-full max-w-sm p-5">
+            <h3 id="modalEditarPesoTitulo" class="card-title text-lg mb-1">Corrigir registro</h3>
+            <p id="editarPesoContexto" class="text-sm t-dim mb-4"></p>
+            <label for="editarPesoValor" class="field-label block text-xs mb-1.5">Peso (kg)</label>
+            <input type="text" inputmode="decimal" id="editarPesoValor" autocomplete="off" class="input-row w-full p-3 text-center text-lg mb-4">
+            <label for="editarDataValor" class="field-label block text-xs mb-1.5">Data</label>
+            <input type="date" id="editarDataValor" class="theme-date-input input-row w-full p-3 text-center text-base mb-4">
             <div class="flex gap-2">
-                <button type="button" id="btnCancelarEditarPeso" class="flex-1 rounded-xl border border-zinc-600 py-2.5 text-sm font-medium text-zinc-300 hover:bg-zinc-800">Cancelar</button>
-                <button type="button" id="btnGuardarEditarPeso" class="flex-1 rounded-xl bg-orange-500 py-2.5 text-sm font-semibold text-white hover:bg-orange-400">Salvar</button>
+                <button type="button" id="btnCancelarEditarPeso" class="btn-secondary flex-1 py-2.5 text-sm">Cancelar</button>
+                <button type="button" id="btnGuardarEditarPeso" class="btn-primary flex-1 py-2.5 text-sm">Salvar</button>
             </div>
         </div>
     </div>
+
+    <!-- Em dev, aponta a volta para o hub local (8080) em vez de produção.
+         A DIREÇÃO é o ponto: o HTML guarda a URL de produção literal e o dev
+         reescreve — nunca o contrário. Sem JS, ou se isto falhar, degrada para
+         produção, que é o único comportamento que os utilizadores veem. O
+         inverso seria uma bomba: um deploy a apontar para localhost.
+         Se o hub não estiver de pé, o clique dá erro de ligação — sinal certo. -->
+    <script>
+        (function () {
+            var h = location.hostname;
+            if (h !== 'localhost' && h !== '127.0.0.1') return;
+            var el = document.querySelectorAll('.btn-back');
+            for (var i = 0; i < el.length; i++) el[i].href = 'http://localhost:8080/';
+        })();
+    </script>
 
     <script type="module" src="src/js/app.js"></script>
     <script>

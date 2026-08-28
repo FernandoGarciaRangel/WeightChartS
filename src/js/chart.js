@@ -1,19 +1,39 @@
-// Gráfico — tema escuro + laranja
+// Gráfico — cores lidas dos tokens de tokens.css, para acompanhar o tema sozinho.
 
 import { weightDB } from './database.js';
 
-const ORANGE = 'rgb(249, 115, 22)';
-const ORANGE_FILL = 'rgba(249, 115, 22, 0.12)';
+/**
+ * Lê um custom property do :root. getPropertyValue devolve a string com o
+ * espaço à esquerda do valor, daí o trim(); `fallback` cobre o caso de a
+ * folha de estilos ainda não ter carregado (ex.: primeira pintura offline).
+ */
+function token(name, fallback) {
+    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return v || fallback;
+}
+
+/** Laranja do traço: --accent não muda entre temas (é preenchimento, não texto). */
+function accent() {
+    return token('--accent', '#f97316');
+}
+
+function accentFill() {
+    return token('--accent-glow', 'rgba(249, 115, 22, 0.18)');
+}
 
 function getThemeColors() {
     const light = document.documentElement.dataset.theme === 'light';
     return {
         GRID: light ? 'rgba(0, 0, 0, 0.1)' : 'rgba(63, 63, 70, 0.6)',
-        TICK: light ? '#52525b' : '#a1a1aa',
-        pointBorder: light ? '#ffffff' : '#18181b',
+        // Ticks e legenda são texto pequeno: --text-dim, não --text-faint (§2.3).
+        TICK: token('--text-dim', light ? '#52525b' : '#a1a1aa'),
+        // Borda do ponto = a superfície atrás dele, para o ponto "recortar" o traço.
+        pointBorder: light ? '#ffffff' : token('--surface', '#161618'),
         tooltipBg: light ? 'rgba(255, 255, 255, 0.96)' : 'rgba(24, 24, 27, 0.95)',
-        titleColor: light ? '#18181b' : '#fafafa',
-        bodyColor: light ? '#3f3f46' : '#e4e4e7',
+        titleColor: token('--text', light ? '#18181b' : '#f4f4f5'),
+        bodyColor: token('--text-dim', light ? '#52525b' : '#a1a1aa'),
+        line: accent(),
+        fill: accentFill(),
     };
 }
 
@@ -64,7 +84,8 @@ class WeightChart {
         }
 
         const isNarrow = window.innerWidth < 768;
-        const { GRID, TICK, pointBorder, tooltipBg, titleColor, bodyColor } = getThemeColors();
+        const { GRID, TICK, pointBorder, tooltipBg, titleColor, bodyColor, line, fill } =
+            getThemeColors();
 
         this.chart = new Chart(ctx, {
             type: 'line',
@@ -73,11 +94,11 @@ class WeightChart {
                 datasets: [{
                     label: 'Peso (kg)',
                     data: [],
-                    borderColor: ORANGE,
-                    backgroundColor: ORANGE_FILL,
+                    borderColor: line,
+                    backgroundColor: fill,
                     tension: 0.35,
                     fill: true,
-                    pointBackgroundColor: ORANGE,
+                    pointBackgroundColor: line,
                     pointBorderColor: pointBorder,
                     pointBorderWidth: 2,
                     pointRadius: isNarrow ? 3 : 4,
@@ -108,7 +129,7 @@ class WeightChart {
                         backgroundColor: tooltipBg,
                         titleColor: titleColor,
                         bodyColor: bodyColor,
-                        borderColor: 'rgba(249, 115, 22, 0.4)',
+                        borderColor: line,
                         borderWidth: 1,
                         cornerRadius: 10,
                         displayColors: false,
@@ -190,9 +211,13 @@ class WeightChart {
 
     syncTheme() {
         if (!this.chart) return;
-        const { GRID, TICK, pointBorder, tooltipBg, titleColor, bodyColor } = getThemeColors();
+        const { GRID, TICK, pointBorder, tooltipBg, titleColor, bodyColor, line, fill } =
+            getThemeColors();
         const ds = this.chart.data.datasets[0];
         ds.pointBorderColor = pointBorder;
+        ds.borderColor = line;
+        ds.backgroundColor = fill;
+        ds.pointBackgroundColor = line;
         this.chart.options.color = TICK;
         const L = this.chart.options.plugins.legend.labels;
         L.color = TICK;
@@ -250,11 +275,14 @@ class WeightChart {
             const data = new Array(count).fill(this._goal);
             if (datasets[1]) {
                 datasets[1].data = data;
+                datasets[1].borderColor = token('--accent-soft', '#fb923c');
             } else {
                 datasets.push({
                     label: 'Meta',
                     data,
-                    borderColor: 'rgba(16, 185, 129, 0.9)',
+                    // Era verde-esmeralda, fora do sistema. O canvas do design
+                    // desenha a meta em --accent-soft tracejado.
+                    borderColor: token('--accent-soft', '#fb923c'),
                     borderDash: [6, 6],
                     borderWidth: 2,
                     pointRadius: 0,

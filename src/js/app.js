@@ -61,8 +61,16 @@ class WeightApp {
         this.currentTheme = t;
         document.documentElement.dataset.theme = t;
 
+        // Espelho sem uid: é o que o script inline do <head> consegue ler antes
+        // do Firebase resolver a sessão, e é o que evita o flash de tema errado.
+        try {
+            localStorage.setItem('weightcharts_theme_last', t);
+        } catch {
+            /* ignore */
+        }
+
         const metaTheme = document.querySelector('meta[name="theme-color"]');
-        if (metaTheme) metaTheme.content = t === 'light' ? '#f4f4f5' : '#f97316';
+        if (metaTheme) metaTheme.content = t === 'light' ? '#fafafa' : '#09090b';
 
         const statusBar = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
         if (statusBar) statusBar.content = t === 'light' ? 'default' : 'black-translucent';
@@ -307,11 +315,11 @@ class WeightApp {
         if (authStatus) {
             if (this.isAuthenticated) {
                 authStatus.textContent = 'Conectado';
-                authStatus.className = 'text-sm font-medium text-orange-400';
+                authStatus.className = 'auth-status text-sm font-semibold';
                 authStatus.setAttribute('data-auth', 'in');
             } else {
                 authStatus.textContent = 'Desconectado';
-                authStatus.className = 'text-sm font-medium text-red-400';
+                authStatus.className = 'auth-status text-sm font-semibold';
                 authStatus.setAttribute('data-auth', 'out');
             }
         }
@@ -320,10 +328,10 @@ class WeightApp {
             if (this.isAuthenticated) {
                 const displayName = firebaseManager.getCurrentUserDisplayName();
                 userInfo.textContent = `Olá, ${displayName}!`;
-                userInfo.className = 'text-xs text-zinc-400';
+                userInfo.className = 'user-info text-xs';
             } else {
                 userInfo.textContent = 'Não autenticado';
-                userInfo.className = 'text-xs text-zinc-500';
+                userInfo.className = 'user-info text-xs';
             }
         }
 
@@ -708,15 +716,18 @@ class WeightApp {
     /** Cria o <li> de um registro (info + ações corrigir/excluir). Reutilizado na home e no modal. */
     createRegistroLi(r) {
         const li = document.createElement('li');
-        li.className =
-            'flex flex-wrap items-center justify-between gap-2 py-2.5 px-3 bg-zinc-950/40';
+        li.className = 'list-row flex flex-wrap items-center justify-between gap-2 py-2.5 px-3';
 
         const info = document.createElement('span');
-        info.className = 'text-sm text-zinc-300';
-        const pesoFmt = typeof r.peso === 'number' ? r.peso.toFixed(1) : String(r.peso);
+        info.className = 'list-row-info text-sm';
+        // Vírgula decimal como em todo o resto da UI (estatísticas, tooltip do
+        // gráfico, export). Esta linha era a única que mostrava "72.4 kg" com
+        // ponto, ao lado de um cartão que dizia "72,4".
+        const pesoFmt =
+            typeof r.peso === 'number' ? r.peso.toFixed(1).replace('.', ',') : String(r.peso);
         info.textContent = `${r.label} · `;
         const strong = document.createElement('strong');
-        strong.className = 'text-orange-400';
+        strong.className = 'list-row-peso';
         strong.textContent = `${pesoFmt} kg`;
         info.appendChild(strong);
 
@@ -725,8 +736,7 @@ class WeightApp {
 
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.className =
-            'shrink-0 rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-200 hover:border-orange-500/50';
+        btn.className = 'btn-chip shrink-0 py-1.5';
         btn.textContent = 'Corrigir';
         btn.dataset.action = 'editar';
         btn.dataset.label = r.label;
@@ -737,8 +747,7 @@ class WeightApp {
 
         const delBtn = document.createElement('button');
         delBtn.type = 'button';
-        delBtn.className =
-            'shrink-0 rounded-lg border border-red-900/50 bg-red-950/40 px-3 py-1.5 text-xs font-medium text-red-300 hover:bg-red-950/70';
+        delBtn.className = 'btn-chip-danger shrink-0 py-1.5';
         delBtn.textContent = 'Excluir';
         delBtn.dataset.action = 'excluir';
         delBtn.dataset.label = r.label;
@@ -1280,12 +1289,8 @@ class WeightApp {
         const container = document.getElementById('filtroPeriodo');
         if (!container) return;
         container.querySelectorAll('.range-btn').forEach((b) => {
-            const active = b === activeBtn;
-            b.classList.toggle('border-orange-500', active);
-            b.classList.toggle('text-orange-400', active);
-            b.classList.toggle('bg-orange-500/10', active);
-            b.classList.toggle('border-zinc-700', !active);
-            b.classList.toggle('text-zinc-300', !active);
+            b.classList.toggle('is-active', b === activeBtn);
+            b.setAttribute('aria-pressed', b === activeBtn ? 'true' : 'false');
         });
     }
 
@@ -1329,18 +1334,11 @@ class WeightApp {
 
     applyProfileToggleUI(isPublic) {
         const btn = document.getElementById('btnTogglePublico');
-        const knob = document.getElementById('togglePublicoKnob');
         const estado = document.getElementById('perfilPublicoEstado');
+        // A posição do #togglePublicoKnob passou para o CSS (.toggle.is-on .toggle-knob).
         if (btn) {
             btn.setAttribute('aria-checked', isPublic ? 'true' : 'false');
-            btn.classList.toggle('bg-orange-500', isPublic);
-            btn.classList.toggle('border-orange-500', isPublic);
-            btn.classList.toggle('bg-zinc-700', !isPublic);
-            btn.classList.toggle('border-zinc-600', !isPublic);
-        }
-        if (knob) {
-            knob.classList.toggle('translate-x-6', isPublic);
-            knob.classList.toggle('translate-x-1', !isPublic);
+            btn.classList.toggle('is-on', isPublic);
         }
         if (estado) {
             estado.textContent = isPublic
@@ -1461,16 +1459,15 @@ class WeightApp {
 
         for (const p of perfis) {
             const li = document.createElement('li');
-            li.className =
-                'flex items-center justify-between gap-2 py-3 px-3 cursor-pointer hover:bg-zinc-950/40';
+            li.className = 'perfil-row flex items-center justify-between gap-2 py-3 px-3';
             li.dataset.uid = p.uid;
 
             const nome = document.createElement('span');
-            nome.className = 'text-sm font-medium text-zinc-200';
+            nome.className = 'perfil-nome text-sm';
             nome.textContent = p.displayName;
 
             const meta = document.createElement('span');
-            meta.className = 'text-xs text-zinc-500';
+            meta.className = 'perfil-meta text-xs';
             meta.textContent = `${p.count} registro(s) →`;
 
             li.appendChild(nome);
