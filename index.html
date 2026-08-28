@@ -195,12 +195,19 @@
             <div class="flex flex-wrap justify-center items-center gap-x-3 gap-y-1 mt-2">
                 <span id="authStatus" class="auth-status text-sm font-semibold t-dim">⏳ Conectando...</span>
                 <span id="userInfo" class="user-info text-xs">Inicializando...</span>
-                <button type="button" id="btnTheme" class="btn-chip hidden" title="Alternar tema claro ou escuro" aria-pressed="false">
-                    Tema claro
-                </button>
-                <button type="button" id="btnLogout" class="btn-chip hidden">
-                    Sair
-                </button>
+                <!-- Os três controles num grupo próprio: com 5 itens soltos a linha
+                     quebrava onde calhava e deixava o "Sair" órfão a 375px. -->
+                <div class="flex flex-wrap justify-center items-center gap-2">
+                    <!-- Volta para o portal. Link e na mesma aba de propósito: instalado
+                         como PWA não existe aba do hub por trás (ver btn-back na spec). -->
+                    <a href="https://apps-hub-beta.vercel.app" class="btn-back" aria-label="Voltar para o portal de apps">← Apps</a>
+                    <button type="button" id="btnTheme" class="btn-chip hidden" title="Alternar tema claro ou escuro" aria-pressed="false">
+                        Tema claro
+                    </button>
+                    <button type="button" id="btnLogout" class="btn-chip hidden">
+                        Sair
+                    </button>
+                </div>
             </div>
         </div>
     </header>

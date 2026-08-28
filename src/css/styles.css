@@ -420,6 +420,29 @@ input[type="number"]::-webkit-inner-spin-button {
     background-color: var(--danger-soft-bg-hover);
 }
 
+/* Volta para o portal. É um <a>, então não herda o `button { min-height: 44px }`
+   global — a altura vai explícita, como no .landing-social-link. */
+:root .btn-back {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 0.75rem;
+    border-radius: var(--radius-xs);
+    background-color: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: var(--step--1);
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+:root .btn-back:hover {
+    border-color: var(--border-hover);
+    color: var(--accent-text);
+}
+
 :root .icon-btn {
     border-radius: var(--radius-xs);
     background: none;
