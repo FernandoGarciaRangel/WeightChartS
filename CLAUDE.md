@@ -93,7 +93,17 @@ O tema (`light`/`dark`) é aplicado via `document.documentElement.dataset.theme`
 - Use as classes de componente (`card`, `panel`, `btn-primary`, `btn-secondary`, `btn-chip`, `input-row`, `list-row`, `t-dim`, `t-accent`…) em vez de utilitárias de cor do Tailwind (`bg-zinc-900`, `text-white`). As utilitárias de **layout** (`flex`, `gap-2`, `p-4`) continuam normais.
 - As regras de componente começam com `:root` de propósito: o Tailwind CDN injeta o `<style>` dele **depois** do nosso CSS, então empata em especificidade (0,1,0) e vence pela ordem. `:root .card` dá (0,2,0) e ganha sem `!important`.
 
-Regras de contraste (medidas, ver `../Apps-Hub/DESIGN-SYSTEM.md`): texto sobre laranja é `--on-accent`, nunca branco; laranja como **texto** é `--accent-text` (que escurece no tema claro), nunca `--accent`; `--text-faint` não é cor de texto pequeno.
+Regras de contraste (medidas, ver `../Apps-Hub/DESIGN-SYSTEM.md`): texto sobre laranja é `--on-accent`, nunca branco; laranja como **texto** é `--accent-text` (que escurece no tema claro), nunca `--accent`; `--text-faint` não é cor de texto pequeno. E o hover tem de se **afastar** do fundo — no escuro clareia, no claro escurece (`--link-hover`).
+
+#### Ao auditar cor por script, três armadilhas
+
+Duas sessões já perderam tempo com a primeira, e uma quase reportou três bugs inexistentes:
+
+1. **Espere a transição acabar.** `body` tem `transition: background-color 0.2s`. Ler `getComputedStyle` logo depois de trocar `data-theme` devolve o valor **interpolado**: o `html` já está claro e o `body` ainda escuro, e o contraste sai errado. Espere ~600 ms, ou injete `*{transition:none!important}` antes de medir.
+2. **Filtre elementos ocluídos.** Revelar todas as telas de uma vez faz medir texto que está por baixo de um scrim, contra o fundo errado. Meça uma tela de cada vez, ou confirme com `elementFromPoint`.
+3. **`:hover` não se revela injetando CSS**, ao contrário de `.hidden`. Para medir um estado de hover, resolva o token que a regra usa (`getComputedStyle` num elemento-sonda com `color: var(--link-hover)`) — foi assim que o bug do `.btn-link` foi confirmado depois de escapar a uma auditoria que só media repouso.
+
+Handles para o driver: `window.weightApp` **existe** (`applyTheme`, `chart`, `createRegistroLi`, `metaPeso`); `window.weightDB` **não** — é escopo de módulo. Para o gráfico, `window.Chart.getChart('graficoPeso')`.
 
 ## Idioma
 
