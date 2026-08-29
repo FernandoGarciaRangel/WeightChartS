@@ -31,6 +31,32 @@ class WeightApp {
         this.isProfilePublic = false;
         /** Instância read-only do gráfico na tela Explorar. */
         this.profileChart = null;
+        /** Perfis públicos carregados na tela Explorar. */
+        this._publicProfiles = [];
+        /**
+         * Fila serial das escritas do perfil público. Sem ela, um `syncPublicProfile()`
+         * disparado com `void` podia terminar DEPOIS de o utilizador voltar a privado e
+         * recriar os documentos que o toggle acabara de apagar — perfil público outra vez,
+         * com a UI a dizer "privado".
+         */
+        this._publicOps = Promise.resolve();
+        /** Muda a cada troca de visibilidade/sessão: sync de uma geração antiga é descartado. */
+        this._publicEpoch = 0;
+        /** Ordem dos syncs: só o mais recente escreve (os leitores podem resolver fora de ordem). */
+        this._publicSyncSeq = 0;
+        /** Guarda de reentrância do toggle (duplo-clique intercalava escritas). */
+        this._togglingProfile = false;
+        /** Última sincronização do snapshot público falhou (mostrado no cartão). */
+        this._publicSyncFailed = false;
+        /**
+         * Assinatura do último snapshot público gravado com sucesso nesta sessão.
+         * `bootstrapAuthUI()` e o evento `userAuthChanged` correm ambos ao abrir o app, o
+         * que fazia a auto-cura escrever duas vezes o mesmo snapshot. Zerada a cada sessão,
+         * para a auto-cura continuar a corrigir drift vindo de outro dispositivo.
+         */
+        this._lastPublicPayload = null;
+        /** Sequência dos pedidos de detalhe no Explorar (descarta resposta de um clique antigo). */
+        this._profileDetailReq = 0;
         this.init();
     }
 
@@ -245,6 +271,10 @@ class WeightApp {
     setupAuthListener() {
         window.addEventListener('userAuthChanged', (event) => {
             const user = event.detail.user;
+            // Invalida syncs em voo da sessão anterior (escreveriam com o uid errado em mente).
+            this._publicEpoch += 1;
+            this._publicSyncFailed = false;
+            this._lastPublicPayload = null;
             this.isAuthenticated = !!user;
             this.currentUser = user;
             this.updateAuthUI();
@@ -1341,10 +1371,37 @@ class WeightApp {
             btn.classList.toggle('is-on', isPublic);
         }
         if (estado) {
-            estado.textContent = isPublic
-                ? 'Seu perfil está público — outros veem sua evolução.'
-                : 'Seu perfil está privado.';
+            if (!isPublic) {
+                estado.textContent = 'Seu perfil está privado.';
+            } else if (this._publicSyncFailed) {
+                // Sem isto, uma falha de sync deixava a evolução pública congelada em silêncio.
+                estado.textContent =
+                    'Seu perfil está público, mas não foi possível enviar a evolução mais recente.';
+            } else {
+                estado.textContent = 'Seu perfil está público — outros veem sua evolução.';
+            }
         }
+    }
+
+    /** Desativa o toggle enquanto a mudança está a ser gravada. */
+    setProfileToggleBusy(busy) {
+        const btn = document.getElementById('btnTogglePublico');
+        if (!btn) return;
+        btn.disabled = busy;
+        btn.setAttribute('aria-busy', busy ? 'true' : 'false');
+    }
+
+    /**
+     * Enfileira uma escrita do perfil público. Toggle e sync partilham a fila, por isso
+     * nunca se cruzam; uma falha não trava as seguintes.
+     */
+    queuePublicOp(task) {
+        const next = this._publicOps.then(
+            () => task(),
+            () => task(),
+        );
+        this._publicOps = next.catch(() => {});
+        return next;
     }
 
     async toggleProfilePublic() {
@@ -1352,6 +1409,8 @@ class WeightApp {
             this.showErrorMessage('Recurso disponível apenas conectado à conta.');
             return;
         }
+        if (this._togglingProfile) return;
+
         const novo = !this.isProfilePublic;
         if (novo) {
             const ok = await this.confirmAction({
@@ -1361,38 +1420,91 @@ class WeightApp {
                 confirmLabel: 'Tornar público',
             });
             if (!ok) return;
+            // A sessão pode ter caído durante a confirmação.
+            if (!firebaseManager.isAvailable()) {
+                this.showErrorMessage('Recurso disponível apenas conectado à conta.');
+                return;
+            }
         }
+
+        this._togglingProfile = true;
+        this.setProfileToggleBusy(true);
+        // Descarta syncs em voo: o snapshot deles é anterior a esta decisão.
+        this._publicEpoch += 1;
         try {
-            const displayName = firebaseManager.getCurrentUserDisplayName();
-            const snap = novo ? await weightDB.getEvolucaoSnapshot() : { points: [], total: 0 };
-            await firebaseManager.setProfilePublic(novo, {
-                displayName,
-                evolucao: snap.points,
-                meta: this.metaPeso,
-                count: snap.total,
-            });
+            let payload = { displayName: '', evolucao: [], meta: null, count: 0 };
+            if (novo) {
+                // Lê ANTES de escrever: se a leitura falhar, não publicamos um perfil vazio.
+                const snap = await weightDB.getEvolucaoSnapshot();
+                payload = {
+                    displayName: firebaseManager.getCurrentUserDisplayName(),
+                    evolucao: snap.points,
+                    meta: this.metaPeso,
+                    count: snap.total,
+                };
+            }
+            await this.queuePublicOp(() => firebaseManager.setProfilePublic(novo, payload));
             this.isProfilePublic = novo;
+            this._publicSyncFailed = false;
+            this._lastPublicPayload = novo ? JSON.stringify(payload) : null;
             this.applyProfileToggleUI(novo);
             this.showSuccessMessage(novo ? 'Perfil público ativado.' : 'Perfil voltou a ser privado.');
-        } catch {
-            this.showErrorMessage('Não foi possível atualizar o perfil.');
+        } catch (e) {
+            console.warn('Erro ao mudar a visibilidade do perfil:', e);
+            // O estado real não mudou: reafirma a UI a partir dele (o toggle não fica "meio ligado").
+            this.applyProfileToggleUI(this.isProfilePublic);
+            this.showErrorMessage(
+                novo
+                    ? 'Não foi possível tornar o perfil público. Tente novamente.'
+                    : 'Não foi possível voltar a privado — seu perfil continua público. Tente novamente.',
+            );
+        } finally {
+            this._togglingProfile = false;
+            this.setProfileToggleBusy(false);
         }
     }
 
-    /** Regrava o snapshot público após alterar registros (silencioso). */
+    /** Regrava o snapshot público após alterar registros/meta (em segundo plano). */
     async syncPublicProfile() {
         if (!this.isProfilePublic || !firebaseManager.isAvailable()) return;
+        const epoch = this._publicEpoch;
+        // A leitura fica FORA da fila de propósito: uma leitura lenta não pode segurar o
+        // toggle (voltar a privado tem de ser sempre imediato). Como duas leituras podem
+        // resolver fora de ordem, `seq` garante que só a mais recente chega a escrever.
+        const seq = ++this._publicSyncSeq;
+        let wrote = false;
         try {
             const displayName = firebaseManager.getCurrentUserDisplayName();
             const snap = await weightDB.getEvolucaoSnapshot();
-            await firebaseManager.updatePublicSnapshot({
+            const payload = {
                 displayName,
                 evolucao: snap.points,
                 meta: this.metaPeso,
                 count: snap.total,
+            };
+            const sig = JSON.stringify(payload);
+            await this.queuePublicOp(async () => {
+                // Reconfere aqui dentro: entre ler os registros e chegar a vez na fila, o
+                // utilizador pode ter voltado a privado ou saído da conta.
+                if (epoch !== this._publicEpoch || seq !== this._publicSyncSeq) return;
+                if (!this.isProfilePublic || !firebaseManager.isAvailable()) return;
+                // Nada mudou desde a última publicação desta sessão — poupa a escrita.
+                if (sig === this._lastPublicPayload) return;
+                await firebaseManager.updatePublicSnapshot(payload);
+                this._lastPublicPayload = sig;
+                wrote = true;
             });
-        } catch {
-            /* sync de fundo — ignora falhas */
+            // Só limpa o aviso se esta chamada chegou mesmo a publicar.
+            if (wrote && epoch === this._publicEpoch && this._publicSyncFailed) {
+                this._publicSyncFailed = false;
+                this.applyProfileToggleUI(this.isProfilePublic);
+            }
+        } catch (e) {
+            console.warn('Não foi possível atualizar a evolução pública:', e);
+            if (epoch === this._publicEpoch) {
+                this._publicSyncFailed = true;
+                this.applyProfileToggleUI(this.isProfilePublic);
+            }
         }
     }
 
@@ -1415,6 +1527,8 @@ class WeightApp {
             modal.classList.remove('flex');
         }
         this.explorarModalOpen = false;
+        // Descarta um detalhe ainda a carregar (a resposta não deve pintar nada depois).
+        this._profileDetailReq += 1;
         this.destroyProfileChart();
     }
 
@@ -1428,6 +1542,7 @@ class WeightApp {
     showExplorarLista() {
         document.getElementById('explorarLista')?.classList.remove('hidden');
         document.getElementById('explorarDetalhe')?.classList.add('hidden');
+        this._profileDetailReq += 1;
         this.destroyProfileChart();
     }
 
@@ -1480,32 +1595,54 @@ class WeightApp {
         const perfil = (this._publicProfiles || []).find((p) => p.uid === uid);
         if (!perfil) return;
 
+        // Cada abertura ganha um número: a resposta de um clique anterior (perfil diferente,
+        // rede mais lenta) chega e é descartada em vez de pintar a série no nome errado.
+        this._profileDetailReq += 1;
+        const req = this._profileDetailReq;
+
         document.getElementById('explorarLista')?.classList.add('hidden');
         document.getElementById('explorarDetalhe')?.classList.remove('hidden');
         const nome = document.getElementById('explorarPerfilNome');
         if (nome) nome.textContent = perfil.displayName;
+        const erro = document.getElementById('explorarPerfilErro');
+        erro?.classList.add('hidden');
+        document.getElementById('graficoPerfilVazio')?.classList.add('hidden');
 
         // A lista traz só metadados; a série completa é carregada agora, sob demanda.
-        let pts = [];
+        let pts = null;
         try {
             pts = await firebaseManager.getPublicSeries(uid);
         } catch (e) {
             console.warn('Erro ao carregar a série do perfil:', e);
-            pts = [];
         }
 
-        // Usuário pode ter voltado à lista ou fechado o modal enquanto carregava.
+        // Usuário pode ter voltado à lista, fechado o modal ou aberto outro perfil.
+        if (req !== this._profileDetailReq) return;
         if (!this.explorarModalOpen) return;
         if (document.getElementById('explorarDetalhe')?.classList.contains('hidden')) return;
+
+        if (pts === null) {
+            // Falha de leitura não é "perfil sem registros" — dizer isso escondia o erro.
+            erro?.classList.remove('hidden');
+            this.destroyProfileChart();
+            return;
+        }
 
         const vazio = document.getElementById('graficoPerfilVazio');
         if (vazio) vazio.classList.toggle('hidden', pts.length > 0);
 
         // Cria a instância read-only só depois que o canvas está visível (tamanho correto).
-        if (!this.profileChart) {
-            this.profileChart = new WeightChart('graficoPerfil', { live: false });
+        try {
+            if (!this.profileChart) {
+                this.profileChart = new WeightChart('graficoPerfil', { live: false });
+            }
+            this.profileChart.renderPoints(pts, perfil.meta);
+        } catch (e) {
+            console.warn('Erro ao desenhar o gráfico do perfil:', e);
+            this.destroyProfileChart();
+            vazio?.classList.add('hidden');
+            erro?.classList.remove('hidden');
         }
-        this.profileChart.renderPoints(pts, perfil.meta);
     }
 
     showSuccessMessage(message) {
@@ -1609,3 +1746,6 @@ class WeightApp {
 document.addEventListener('DOMContentLoaded', () => {
     window.weightApp = new WeightApp();
 });
+
+// Exportado para os testes (o app real é instanciado acima, no DOMContentLoaded).
+export { WeightApp };

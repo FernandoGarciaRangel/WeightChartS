@@ -476,7 +476,7 @@
             </div>
 
             <div id="explorarLista" class="flex-1 min-h-0 overflow-y-auto p-2">
-                <p id="explorarVazio" class="empty-note hidden text-sm p-4 text-center">Nenhum perfil público no momento.</p>
+                <p id="explorarVazio" class="empty-note hidden text-sm p-4 text-center">Nenhum outro perfil público no momento. Seu próprio perfil não aparece nesta lista.</p>
                 <p id="explorarErro" class="t-danger hidden text-sm p-4 text-center">Não foi possível carregar os perfis. Verifique sua conexão e tente novamente.</p>
                 <ul id="explorarPerfis" aria-label="Perfis públicos"></ul>
             </div>
@@ -484,6 +484,7 @@
             <div id="explorarDetalhe" class="hidden flex-1 min-h-0 flex flex-col p-4">
                 <button type="button" id="btnVoltarExplorar" class="btn-link self-start mb-2 text-sm">← Voltar</button>
                 <h4 id="explorarPerfilNome" class="card-title text-base mb-3"></h4>
+                <p id="explorarPerfilErro" class="t-danger hidden text-sm mb-3">Não foi possível carregar a evolução deste perfil. Verifique sua conexão e tente novamente.</p>
                 <div class="relative w-full min-h-[300px] h-[340px]">
                     <canvas id="graficoPerfil"></canvas>
                     <div id="graficoPerfilVazio" class="hidden absolute inset-0 flex items-center justify-center text-center px-4 pointer-events-none">

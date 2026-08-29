@@ -84,6 +84,29 @@ describe('WeightDatabase.getEvolucaoSnapshot', () => {
             { t: 5, p: 84 },
         ]);
     });
+
+    it('descarta registos sem data válida e interpreta vírgula decimal', async () => {
+        const snap = await dbWith([
+            { timestamp: 0, peso: 90 },        // sem timestamp → sairia em 1970 no gráfico
+            { timestamp: 1000, peso: '80,5' }, // string legada do localStorage
+            { timestamp: 2000, peso: undefined },
+            { timestamp: 3000, peso: 79 },
+        ]).getEvolucaoSnapshot();
+        expect(snap.points).toEqual([
+            { t: 1000, p: 80.5 },
+            { t: 3000, p: 79 },
+        ]);
+        expect(snap.total).toBe(2);
+    });
+
+    it('propaga o erro de leitura em vez de devolver um snapshot vazio', async () => {
+        // Um `{ points: [], total: 0 }` publicado apagaria a evolução de um perfil público.
+        const db = new WeightDatabase();
+        db.getRecordsCached = async () => {
+            throw new Error('offline');
+        };
+        await expect(db.getEvolucaoSnapshot()).rejects.toThrow('offline');
+    });
 });
 
 describe('WeightDatabase.formatSeries', () => {
