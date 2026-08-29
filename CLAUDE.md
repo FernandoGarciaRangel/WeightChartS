@@ -87,6 +87,40 @@ Os registros de peso são organizados como `{ [mes]: { [semana]: [ {peso, data, 
 - **Estatísticas** — `WeightDatabase.getStats()` retorna `latestPeso`, `delta`, `delta7`, `delta30`, `min`, `max`, `avg`, `total`.
 - **Perfil público / Explorar** — opt-in via flag `users/{uid}.public` (doc **privado**, só o dono lê). O snapshot público fica em **coleções separadas**, legíveis por qualquer autenticado: `publicProfiles/{uid}` guarda metadados leves (`displayName`, `meta`, `count` = total real de registros) para a lista, e `publicSeries/{uid}` guarda a série completa (`points: [{t,p}]`). `getEvolucaoSnapshot()` retorna `{ points, total }` — `points` limitado a 1000 (para o gráfico) e `total` = contagem real (para `count`). Assim tema/preferências e os `weightRecords` continuam privados. A seção "Explorar" lista `publicProfiles` (`firebaseManager.listPublicProfiles()` — docs pequenos) e, só ao abrir um perfil, busca a série de `publicSeries/{uid}` (`getPublicSeries(uid)`) e renderiza num `WeightChart` read-only (`new WeightChart(id, { live:false })` + `renderPoints()`). O snapshot é regravado após cada escrita/alteração de meta — e uma vez no carregamento se já público (auto-cura de drift entre dispositivos) — via `WeightApp.syncPublicProfile()` → `firebaseManager.updatePublicSnapshot()`; ao desativar, `setProfilePublic(false)` **apaga** ambos os docs públicos. `listPublicProfiles()` **lança** em erro para a UI distinguir "sem perfis" de "falha ao carregar". As regras do Firestore liberam leitura de `publicProfiles`/`publicSeries` a autenticados; `users/{uid}` volta a ser só-do-dono.
 
+#### As cinco invariantes do perfil público
+
+A visibilidade é a única parte do app em que um erro **expõe dados de outra pessoa** ou apaga
+o que já estava publicado. Cada regra abaixo corrige um bug real (todas têm teste; ver
+`test/app.publicProfile.test.js` e `test/firebase.publicProfile.test.js`).
+
+1. **A flag é a última escrita, e a ordem é oposta nos dois sentidos.** Ao ficar público:
+   grava `publicProfiles`/`publicSeries` e **só depois** `users/{uid}.public = true`. Ao voltar
+   a privado: **apaga** os dois docs e só depois `public = false`. Se algo falhar, a flag
+   privada nunca diz o contrário do que está realmente publicado.
+2. **Falhar ao apagar não é sucesso.** `setProfilePublic(false)` **lança** se o `deleteDoc`
+   falhar (regra por publicar, offline) — antes havia um `.catch(() => {})` que fazia a UI
+   anunciar "voltou a ser privado" com os documentos ainda legíveis por todos. A UI mantém o
+   toggle ligado e diz *"seu perfil continua público"*.
+3. **Snapshot vazio nunca é publicado por falha de leitura.** `getEvolucaoSnapshot()` **lança**
+   em vez de devolver `{ points: [], total: 0 }`; publicar esse vazio apagava a evolução de
+   quem já era público (e a auto-cura no boot fazia isso sozinha, offline).
+4. **Escritas do perfil público são serializadas (`WeightApp.queuePublicOp`) e versionadas.**
+   `_publicEpoch` muda a cada troca de visibilidade/sessão e `_publicSyncSeq` a cada sync; um
+   `void syncPublicProfile()` em voo que resolvesse depois do toggle recriava os docs apagados
+   — perfil público outra vez, UI a dizer "privado". A **leitura** fica fora da fila de
+   propósito: uma leitura lenta não pode segurar o caminho de voltar a privado.
+   `_lastPublicPayload` evita reescrever snapshot idêntico (o boot chama o sync duas vezes:
+   `bootstrapAuthUI()` e o listener `userAuthChanged`).
+5. **Só vai para a série o que o gráfico consegue desenhar.** `getEvolucaoSnapshot()` (e, por
+   defesa, `_writePublicSnapshot`) descarta ponto sem timestamp (sairia em 1970) e converte
+   peso em string ("80,5"); um `p` undefined faz o Firestore **recusar a escrita inteira**.
+   `count` nunca é menor que a série publicada.
+
+Falha de leitura ≠ ausência de dados, também na UI: o sync em erro escreve no cartão que a
+evolução pública ficou desatualizada, e o detalhe do Explorar mostra erro em vez de
+"este perfil ainda não tem registros". O próprio perfil **não** aparece na lista (por design —
+o texto do vazio diz isso).
+
 ### Tema
 
 O tema (`light`/`dark`) é aplicado via `document.documentElement.dataset.theme`. `WeightChart.refreshTheme()` relê as cores de `getThemeColors()` e chama `chart.update()` sem recriar o gráfico — e `getThemeColors()` lê os tokens com `getComputedStyle(document.documentElement).getPropertyValue(...)`, então o gráfico acompanha o tema sem hex duplicado. A preferência é salva no localStorage (`weightcharts_theme_{uid}`) e no Firestore (`users/{uid}.theme`); `applyTheme()` espelha também em `weightcharts_theme_last`, a chave sem uid que o script inline do `<head>` consegue ler antes do Firebase resolver a sessão (é o que evita o flash de tema errado).

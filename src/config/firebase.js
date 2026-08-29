@@ -495,41 +495,57 @@ class FirebaseManager {
 
     /**
      * Define o perfil como público/privado.
-     * Público: grava metadados + série nas coleções públicas.
-     * Privado: remove ambos os documentos públicos.
-     * Em ambos os casos guarda a flag `public` no doc privado do dono.
+     * Público: grava metadados + série nas coleções públicas, depois liga a flag.
+     * Privado: apaga ambos os documentos públicos, depois desliga a flag.
+     *
+     * A ordem é deliberada e oposta nos dois sentidos: primeiro a operação que expõe ou
+     * oculta os dados, só depois a flag privada. Assim, se algo falhar, a flag nunca diz
+     * o contrário do que está realmente publicado.
+     *
+     * **Lança** em qualquer falha — em especial na remoção. Antes o `deleteDoc` tinha
+     * `.catch(() => {})`: uma remoção negada (regras) ou offline passava por sucesso, a UI
+     * anunciava "perfil voltou a ser privado" e os documentos continuavam legíveis por todos.
      */
     async setProfilePublic(isPublic, snapshot = {}) {
-        if (!this.isAvailable() || !this.currentUser) return;
+        if (!this.isAvailable() || !this.currentUser) {
+            throw new Error('Firebase não está disponível ou usuário não autenticado');
+        }
         const uid = this.currentUser.uid;
-        const userRef = window.firebaseSDK.doc(this.db, 'users', uid);
+
+        if (isPublic) {
+            await this._writePublicSnapshot(uid, snapshot);
+        } else {
+            await this._deletePublicSnapshot(uid);
+        }
+
         await window.firebaseSDK.setDoc(
-            userRef,
+            window.firebaseSDK.doc(this.db, 'users', uid),
             {
                 public: isPublic === true,
                 preferencesUpdatedAt: window.firebaseSDK.serverTimestamp(),
             },
             { merge: true },
         );
-
-        if (isPublic) {
-            await this._writePublicSnapshot(uid, snapshot);
-        } else {
-            await Promise.all([
-                window.firebaseSDK.deleteDoc(window.firebaseSDK.doc(this.db, 'publicProfiles', uid)).catch(() => {}),
-                window.firebaseSDK.deleteDoc(window.firebaseSDK.doc(this.db, 'publicSeries', uid)).catch(() => {}),
-            ]);
-        }
     }
 
-    /** Regrava o snapshot público (nome, meta e série) — usado após alterar registros/meta se já público. */
+    /**
+     * Regrava o snapshot público (nome, meta e série) — usado após alterar registros/meta
+     * se já público. **Lança** em falha: quem chama decide se avisa o utilizador (a app
+     * sinaliza no cartão que a evolução pública ficou desatualizada).
+     */
     async updatePublicSnapshot(snapshot = {}) {
-        if (!this.isAvailable() || !this.currentUser) return;
-        try {
-            await this._writePublicSnapshot(this.currentUser.uid, snapshot);
-        } catch (e) {
-            console.warn('Não foi possível atualizar a evolução pública:', e);
+        if (!this.isAvailable() || !this.currentUser) {
+            throw new Error('Firebase não está disponível ou usuário não autenticado');
         }
+        await this._writePublicSnapshot(this.currentUser.uid, snapshot);
+    }
+
+    /** @private Remove os dois documentos públicos. Apagar doc inexistente é sucesso no Firestore. */
+    async _deletePublicSnapshot(uid) {
+        await Promise.all([
+            window.firebaseSDK.deleteDoc(window.firebaseSDK.doc(this.db, 'publicProfiles', uid)),
+            window.firebaseSDK.deleteDoc(window.firebaseSDK.doc(this.db, 'publicSeries', uid)),
+        ]);
     }
 
     /**
@@ -537,12 +553,18 @@ class FirebaseManager {
      * `count` é a contagem real de registros (pode exceder `evolucao.length`, que é limitado).
      */
     async _writePublicSnapshot(uid, { displayName, evolucao, meta, count } = {}) {
-        const points = Array.isArray(evolucao) ? evolucao : [];
+        // Saneia aqui também (não só na origem): um ponto com `p` undefined faz o Firestore
+        // recusar a escrita inteira, e um `t` inválido desenha o perfil em 1970.
+        const points = (Array.isArray(evolucao) ? evolucao : [])
+            .map((pt) => ({ t: Number(pt && pt.t), p: Number(pt && pt.p) }))
+            .filter((pt) => Number.isFinite(pt.t) && pt.t > 0 && Number.isFinite(pt.p) && pt.p > 0);
         const metaValue =
             typeof meta === 'number' && Number.isFinite(meta) && meta > 0 ? meta : null;
+        // `count` é a contagem real de registros e pode exceder `points` (limitado a 1000),
+        // mas nunca ser menor — senão a lista anuncia menos registros do que o gráfico mostra.
         const total =
             typeof count === 'number' && Number.isFinite(count) && count >= 0
-                ? count
+                ? Math.max(Math.trunc(count), points.length)
                 : points.length;
         const now = window.firebaseSDK.serverTimestamp();
         await Promise.all([

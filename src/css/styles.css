@@ -598,6 +598,12 @@ input[type="number"]::-webkit-inner-spin-button {
     transform: translateX(1.5rem);
 }
 
+/* Enquanto a mudança de visibilidade está sendo gravada, o toggle fica inerte. */
+:root .toggle:disabled {
+    opacity: 0.6;
+    cursor: progress;
+}
+
 /* —————————————————————— landing —————————————————————— */
 
 :root .step-num {

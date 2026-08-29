@@ -65,8 +65,11 @@ service cloud.firestore {
 > `publicSeries/{uid}` só quando um perfil é aberto.
 >
 > ⚠️ **Estas regras precisam ser (re)publicadas manualmente** no Firebase Console. Sem
-> as regras de `publicProfiles`/`publicSeries`, a lista "Explorar" fica vazia (leitura
-> negada). Perfis que já eram públicos no formato antigo precisam ser reativados no toggle.
+> as regras de `publicProfiles`/`publicSeries`, a lista "Explorar" mostra erro (leitura
+> negada) e o toggle **falha em voz alta** em vez de fingir sucesso: ativar mostra "não foi
+> possível tornar o perfil público" e desativar mostra "seu perfil continua público" — esse é
+> o sintoma de regras por publicar. Perfis que já eram públicos no formato antigo precisam
+> ser reativados no toggle.
 
 ## 🚀 **COMO APLICAR AS REGRAS:**
 

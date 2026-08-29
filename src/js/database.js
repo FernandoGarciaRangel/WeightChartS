@@ -579,20 +579,33 @@ class WeightDatabase {
     /**
      * Snapshot compacto da evolução para o perfil público.
      * Retorna `{ points: [{ t: ms, p: peso }] (asc), total }`, onde `points` é limitado aos
-     * últimos `maxPoints` (para não estourar o doc) e `total` é a contagem real de registros.
+     * últimos `maxPoints` (para não estourar o doc) e `total` é a contagem de registros
+     * publicáveis (os que têm data e peso válidos — os mesmos que o gráfico desenha).
+     *
+     * **Lança** se a leitura falhar, de propósito: devolver `{ points: [], total: 0 }` numa
+     * falha transitória fazia o sync publicar um snapshot vazio e apagar a evolução pública
+     * de quem já era público. Quem chama tem de distinguir "sem registros" de "não consegui ler".
+     *
+     * Também saneia: registros antigos podem ter `peso` como string ("80,5") ou ficar sem
+     * timestamp (0). Publicados assim, o gráfico do perfil descarta-os (ou desenha 1970) e a
+     * série fica menor que o `count` anunciado — e um `peso` undefined faz o Firestore recusar
+     * a escrita inteira.
      */
     async getEvolucaoSnapshot(maxPoints = 1000) {
-        let list = [];
-        try {
-            list = await this.getRecordsCached();
-        } catch (error) {
-            console.error('Erro ao montar snapshot:', error);
+        const list = await this.getRecordsCached();
+        const points = [];
+        for (const r of list) {
+            const t = toMillis(r.timestamp);
+            const p =
+                typeof r.peso === 'number'
+                    ? r.peso
+                    : parseFloat(String(r.peso).replace(',', '.'));
+            if (t == null || !Number.isFinite(t) || t <= 0) continue;
+            if (!Number.isFinite(p) || p <= 0 || p > 500) continue;
+            points.push({ t, p });
         }
-        const trimmed = list.length > maxPoints ? list.slice(list.length - maxPoints) : list;
-        return {
-            points: trimmed.map((r) => ({ t: r.timestamp, p: r.peso })),
-            total: list.length,
-        };
+        const trimmed = points.length > maxPoints ? points.slice(points.length - maxPoints) : points;
+        return { points: trimmed, total: points.length };
     }
 
     // Obter registros de um mês específico
