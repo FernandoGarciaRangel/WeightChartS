@@ -39,7 +39,7 @@ O `index.html` carrega o Firebase como módulos ES a partir do CDN do gstatic nu
 - `window.firebase = { app, db, auth }` — instâncias do Firebase
 - `window.firebaseSDK = { collection, addDoc, getDocs, … }` — funções do SDK
 
-`src/config/firebase.js` e `src/js/database.js` **leem esses globais em tempo de execução** — não importam do npm nem de nenhuma URL. O Chart.js é carregado da mesma forma via CDN e exposto como o global `Chart` (declarado `readonly` no `.eslintrc.js`). O Tailwind também é CDN-only com um bloco de configuração personalizado dentro do `index.html`.
+`src/config/firebase.js` e `src/js/database.js` **leem esses globais em tempo de execução** — não importam do npm nem de nenhuma URL. O Chart.js é carregado da mesma forma via CDN e exposto como o global `Chart` (declarado `readonly` no `.eslintrc.cjs`). O Tailwind também é CDN-only com um bloco de configuração personalizado dentro do `index.html`.
 
 ### Responsabilidades dos módulos
 
