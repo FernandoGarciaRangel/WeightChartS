@@ -798,15 +798,15 @@ class WeightDatabase {
         throw new Error('Registro não encontrado');
     }
 
-    // Limpar todos os dados
+    /**
+     * Apaga todos os registros. **Lança** se a remoção no Firebase falhar: antes o erro era
+     * engolido, o estado local era zerado e a UI anunciava "dados apagados" com os registros
+     * ainda no Firestore. Em falha o cache é invalidado para a UI reler o estado real.
+     */
     async clearAllData() {
         try {
             if (this.useFirebase) {
-                // Limpar no Firebase
-                const firebaseRecords = await firebaseManager.getWeightRecords();
-                for (const record of firebaseRecords) {
-                    await firebaseManager.deleteWeightRecord(record.id);
-                }
+                await firebaseManager.clearAllUserData();
                 console.log('Dados limpos do Firebase');
             }
 
@@ -814,8 +814,7 @@ class WeightDatabase {
             this.removeLocalStorageKey();
         } catch (error) {
             console.error('Erro ao limpar dados:', error);
-            this.registros = {};
-            this.removeLocalStorageKey();
+            throw error;
         } finally {
             this.invalidateCache();
         }
@@ -863,15 +862,11 @@ class WeightDatabase {
 
         try {
             if (this.useFirebase) {
-                const firebaseRecords = await firebaseManager.getWeightRecords();
-                for (const record of firebaseRecords) {
-                    await firebaseManager.deleteWeightRecord(record.id);
-                }
-
+                const novos = [];
                 for (const mes of Object.keys(data)) {
                     for (const semana of Object.keys(data[mes])) {
                         for (const registro of data[mes][semana]) {
-                            await firebaseManager.addWeightRecord({
+                            novos.push({
                                 mes,
                                 semana,
                                 peso: registro.peso,
@@ -881,18 +876,21 @@ class WeightDatabase {
                         }
                     }
                 }
+                // Grava os novos antes de apagar os antigos, em lotes (ver firebase.js).
+                await firebaseManager.replaceAllWeightRecords(novos);
                 console.log('Dados importados para Firebase');
-                await this.loadData();
             } else {
                 this.registros = data;
                 this.saveToLocalStorage();
             }
 
-            this.invalidateCache();
             return true;
         } catch (error) {
             console.error('Erro ao importar dados:', error);
             throw error;
+        } finally {
+            // Também em falha: uma importação parcial muda o que está no Firestore.
+            this.invalidateCache();
         }
     }
 
