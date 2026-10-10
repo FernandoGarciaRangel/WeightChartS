@@ -207,12 +207,23 @@ class WeightDatabase {
         this.currentUserId = null;
         /** Cache em memória da lista cronológica (asc). Invalidado em cada escrita / troca de usuário. */
         this._recordsCache = null;
+        /** Leitura em andamento: chamadas paralelas (boot, refresh da UI) partilham-na. */
+        this._recordsPromise = null;
+        /** Muda a cada invalidateCache(); leitura de uma geração antiga não entra no cache. */
+        this._cacheGen = 0;
         this.initializeFirebase();
         this.setupAuthListener();
     }
 
+    /**
+     * Descarta o cache e a leitura em voo. A geração impede que uma leitura iniciada ANTES
+     * de uma escrita resolva depois dela e grave no cache uma lista sem o registro novo —
+     * a checagem de "um por dia" passaria a usar essa lista velha.
+     */
     invalidateCache() {
         this._recordsCache = null;
+        this._recordsPromise = null;
+        this._cacheGen += 1;
     }
 
     /**
@@ -238,10 +249,31 @@ class WeightDatabase {
      * Lista plana de registros, ordenada por timestamp (asc), com cache em memória.
      * Fonte única para gráfico, estatísticas, lista e verificação de duplicados —
      * evita reler a coleção do Firebase a cada chamada.
+     *
+     * Chamadas simultâneas partilham a mesma leitura: no boot, gráfico, estatísticas,
+     * lista e estado do dia pediam a lista ao mesmo tempo e cada um lia a coleção inteira.
      */
     async getRecordsCached() {
         if (this._recordsCache) return this._recordsCache;
+        if (this._recordsPromise) return this._recordsPromise;
 
+        const gen = this._cacheGen;
+        const promise = this._readRecords().then((list) => {
+            if (gen === this._cacheGen) this._recordsCache = list;
+            return list;
+        });
+        this._recordsPromise = promise;
+        // Em falha, a próxima chamada tenta de novo em vez de herdar a rejeição.
+        promise
+            .catch(() => {})
+            .finally(() => {
+                if (this._recordsPromise === promise) this._recordsPromise = null;
+            });
+        return promise;
+    }
+
+    /** @private Lê a lista (Firebase ou localStorage), ordenada por timestamp (asc). */
+    async _readRecords() {
         let list;
         if (await this.firebaseSessionReady()) {
             const fb = await firebaseManager.getWeightRecords();
@@ -268,7 +300,6 @@ class WeightDatabase {
         }
 
         list.sort((a, b) => a.timestamp - b.timestamp);
-        this._recordsCache = list;
         return list;
     }
 
@@ -491,9 +522,8 @@ class WeightDatabase {
                     data: registro.data,
                     timestamp: registro.timestamp,
                 });
-                
-                // Atualizar dados locais
-                await this.loadData();
+                // Sem loadData(): no modo Firebase a leitura vem de getRecordsCached(), e
+                // o invalidateCache() abaixo basta — reler aqui era uma leitura descartada.
             } else {
                 // Salvar no localStorage
                 if (!this.registros[mes]) {
@@ -704,7 +734,6 @@ class WeightDatabase {
         const hasNewDate =
             typeof timestamp === 'number' && Number.isFinite(timestamp) && timestamp > 0;
         const period = hasNewDate ? derivePeriodFromMillis(timestamp) : null;
-        const dataStr = period ? period.data : new Date().toLocaleDateString('pt-BR');
 
         if (period) {
             const collision = await this.hasRecordOnDay(timestamp, {
@@ -716,15 +745,18 @@ class WeightDatabase {
             }
         }
 
+        // `data` só muda junto com a data. Antes, corrigir apenas o peso gravava a data de
+        // HOJE em `data`, deixando o documento a contradizer o próprio timestamp.
         if (this.useFirebase && this.currentUserId && id) {
-            const fields = { peso: n, data: dataStr };
+            const fields = { peso: n };
             if (period) {
+                fields.data = period.data;
                 fields.mes = period.mes;
                 fields.semana = period.semana;
                 fields.timestamp = timestamp;
             }
             await firebaseManager.updateWeightRecord(id, fields);
-            await this.loadData();
+            this.invalidateCache();
             return;
         }
 
@@ -737,9 +769,9 @@ class WeightDatabase {
 
                 const reg = arr[idx];
                 reg.peso = n;
-                reg.data = dataStr;
 
                 if (period) {
+                    reg.data = period.data;
                     reg.timestamp = timestamp;
                     // Mover para o novo mês/semana se a data mudou de período
                     if (period.mes !== mes || period.semana !== sem) {
@@ -774,7 +806,7 @@ class WeightDatabase {
 
         if (this.useFirebase && this.currentUserId && id) {
             await firebaseManager.deleteWeightRecord(id);
-            await this.loadData();
+            this.invalidateCache();
             return;
         }
 

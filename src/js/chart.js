@@ -253,8 +253,9 @@ class WeightChart {
         }
     }
 
+    /** Devolve a promise: quem faz `await chart.refresh()` espera mesmo pelo redesenho. */
     refresh() {
-        this.updateChart();
+        return this.updateChart();
     }
 
     /** Define (ou remove, com null) a meta de peso desenhada como linha tracejada. */
