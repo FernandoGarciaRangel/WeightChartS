@@ -1700,13 +1700,16 @@ class WeightApp {
             if (file) {
                 const reader = new FileReader();
                 reader.onload = async (e) => {
+                    // A importação SUBSTITUI o histórico inteiro — antes não havia aviso.
+                    const ok = await this.confirmAction({
+                        title: 'Importar registros',
+                        message: `Os registros de "${file.name}" vão substituir todos os seus registros atuais. Exporte antes se quiser guardar uma cópia.`,
+                        confirmLabel: 'Substituir',
+                    });
+                    if (!ok) return;
                     try {
                         await weightDB.importData(e.target.result);
                         this.showSuccessMessage('Dados importados com sucesso!');
-                        await this.updateChart();
-                        await this.refreshListaRegistros();
-                        await this.refreshTodayState();
-                        void this.syncPublicProfile();
                     } catch (error) {
                         const msg =
                             error instanceof Error && error.message
@@ -1714,6 +1717,8 @@ class WeightApp {
                                 : 'Erro ao importar dados';
                         this.showErrorMessage(msg);
                     }
+                    // Também após falha: uma importação parcial muda o que está gravado.
+                    await this.refreshAfterBulkChange();
                 };
                 reader.readAsText(file);
             }
@@ -1731,14 +1736,24 @@ class WeightApp {
         if (!ok) return;
         try {
             await weightDB.clearAllData();
-            await this.updateChart();
-            await this.refreshListaRegistros();
-            await this.refreshTodayState();
-            void this.syncPublicProfile();
             this.showSuccessMessage('Todos os dados foram apagados');
         } catch (error) {
-            this.showErrorMessage('Erro ao limpar dados: ' + error.message);
+            this.showErrorMessage(
+                'Não foi possível apagar todos os dados. Verifique sua conexão e tente novamente.',
+            );
+            console.error('Erro ao limpar dados:', error);
         }
+        // Também após falha: acima de 500 registros a remoção pode ter sido parcial,
+        // e a UI tem de mostrar o que realmente ficou gravado.
+        await this.refreshAfterBulkChange();
+    }
+
+    /** Relê tudo após importar/limpar (inclusive em falha) e ressincroniza o perfil público. */
+    async refreshAfterBulkChange() {
+        await this.updateChart();
+        await this.refreshListaRegistros();
+        await this.refreshTodayState();
+        void this.syncPublicProfile();
     }
 }
 

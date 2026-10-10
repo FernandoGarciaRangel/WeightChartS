@@ -37,7 +37,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
 
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Versões fixas nos CDNs: sem elas cada release nova (ex.: Chart.js 5) chegava à
+         produção sem deploy, e o cache-first do sw.js prendia cada usuário à versão que
+         baixou primeiro. Para atualizar: troque a versão E o integrity. -->
+    <script src="https://cdn.tailwindcss.com/3.4.17"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -61,7 +64,9 @@
         };
     </script>
     
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"
+            integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ"
+            crossorigin="anonymous"></script>
     
     <script src="src/config/firebase-config.js"></script>
     <!-- Fallback: firebase-config.js não vai no deploy se estiver só no .gitignore — evita 404 sem config -->
@@ -82,7 +87,7 @@
     </script>
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getFirestore, collection, addDoc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, doc, query, where, orderBy, limit, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getFirestore, collection, addDoc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, doc, query, where, orderBy, limit, serverTimestamp, writeBatch } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, updateProfile, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
         const firebaseConfig = window.__firebaseConfig;
@@ -110,6 +115,7 @@
                     orderBy,
                     limit,
                     serverTimestamp,
+                    writeBatch,
                     onAuthStateChanged,
                     createUserWithEmailAndPassword,
                     signInWithEmailAndPassword,

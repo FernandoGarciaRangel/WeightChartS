@@ -1,5 +1,8 @@
 // Classe para gerenciar Firebase
 class FirebaseManager {
+    /** Máximo de operações num `writeBatch` do Firestore. */
+    static BATCH_LIMIT = 500;
+
     constructor() {
         this.isInitialized = false;
         this.db = null;
@@ -191,8 +194,14 @@ class FirebaseManager {
     // Traduzir erros do Firebase para português
     translateFirebaseError(error) {
         const errorMessages = {
+            // Com a proteção contra enumeração de email (padrão em projetos novos), o
+            // Firebase devolve só este código para email inexistente ou senha errada.
+            'auth/invalid-credential': 'Email ou senha incorretos',
+            'auth/invalid-login-credentials': 'Email ou senha incorretos',
             'auth/user-not-found': 'Usuário não encontrado',
             'auth/wrong-password': 'Senha incorreta',
+            'auth/missing-password': 'Informe a senha',
+            'auth/user-disabled': 'Esta conta foi desativada',
             'auth/email-already-in-use': 'Este email já está em uso',
             'auth/weak-password': 'A senha deve ter pelo menos 6 caracteres',
             'auth/invalid-email': 'Email inválido',
@@ -381,26 +390,89 @@ class FirebaseManager {
         }
     }
 
+    /**
+     * Apaga todos os registros do usuário em lotes (`writeBatch`). **Lança** em falha —
+     * quem chama não pode anunciar "dados apagados" com registros ainda no Firestore.
+     * Até 500 registros a operação é atômica; acima disso, um lote que falhe deixa os
+     * anteriores já apagados.
+     */
     async clearAllUserData() {
         if (!this.isAvailable()) {
             throw new Error('Firebase não está disponível ou usuário não autenticado');
         }
+        const records = await this.getWeightRecords();
+        await this._commitInBatches(records.map((r) => ({ type: 'delete', id: r.id })));
+    }
+
+    /**
+     * Substitui todos os registros do usuário pelos de `records` (importação).
+     *
+     * Grava os novos ANTES de apagar os antigos: antes era o contrário, um registro de
+     * cada vez, e uma falha no meio deixava o usuário sem parte do histórico (ou sem nada).
+     * Até 500 operações (novos + antigos) tudo vai num único lote atômico. Acima disso:
+     * se falhar a gravação dos novos, desfaz o que entrou e mantém os antigos; se falhar a
+     * remoção dos antigos, lança avisando — sobram registros a mais, mas nada se perde.
+     */
+    async replaceAllWeightRecords(records) {
+        if (!this.isAvailable()) {
+            throw new Error('Firebase não está disponível ou usuário não autenticado');
+        }
+        const existing = await this.getWeightRecords();
+        const uid = this.currentUser.uid;
+        const createdAt = new Date().toISOString();
+        const adds = records.map((r) => ({
+            type: 'set',
+            id: window.firebaseSDK.doc(window.firebaseSDK.collection(this.db, 'weightRecords')).id,
+            data: {
+                mes: r.mes,
+                semana: r.semana,
+                peso: r.peso,
+                data: r.data,
+                userId: uid,
+                timestamp: r.timestamp,
+                createdAt,
+            },
+        }));
+        const deletes = existing.map((r) => ({ type: 'delete', id: r.id }));
+
+        if (adds.length + deletes.length <= FirebaseManager.BATCH_LIMIT) {
+            await this._commitInBatches([...adds, ...deletes]);
+            return;
+        }
 
         try {
-            // Buscar todos os registros do usuário
-            const records = await this.getWeightRecords();
-            
-            // Deletar cada registro
-            const deletePromises = records.map(record => 
-                this.deleteWeightRecord(record.id)
-            );
-            
-            await Promise.all(deletePromises);
-            console.log('Todos os dados do usuário foram removidos');
-
+            await this._commitInBatches(adds);
         } catch (error) {
-            console.error('Erro ao limpar dados:', error);
+            // Desfaz o que chegou a entrar; os registros antigos continuam intactos.
+            await this._commitInBatches(adds.map((a) => ({ type: 'delete', id: a.id }))).catch((e) =>
+                console.error('Erro ao desfazer importação parcial:', e),
+            );
             throw error;
+        }
+
+        try {
+            await this._commitInBatches(deletes);
+        } catch (error) {
+            console.error('Erro ao remover registros antigos na importação:', error);
+            throw new Error(
+                'Os registros do arquivo foram importados, mas parte dos antigos não foi removida. Tente importar de novo.',
+            );
+        }
+    }
+
+    /**
+     * @private Executa operações em `weightRecords` em lotes de até BATCH_LIMIT.
+     * `ops` = [{ type: 'set', id, data } | { type: 'delete', id }].
+     */
+    async _commitInBatches(ops) {
+        for (let i = 0; i < ops.length; i += FirebaseManager.BATCH_LIMIT) {
+            const batch = window.firebaseSDK.writeBatch(this.db);
+            for (const op of ops.slice(i, i + FirebaseManager.BATCH_LIMIT)) {
+                const ref = window.firebaseSDK.doc(this.db, 'weightRecords', op.id);
+                if (op.type === 'set') batch.set(ref, op.data);
+                else batch.delete(ref);
+            }
+            await batch.commit();
         }
     }
 
