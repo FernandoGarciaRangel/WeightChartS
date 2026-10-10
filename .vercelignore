@@ -15,3 +15,8 @@ npm-debug.log*
 # Arquivos temporários
 .DS_Store
 Thumbs.db
+
+# Firebase CLI (regras do Firestore — publicadas à parte, não fazem parte do site)
+firestore.rules
+firebase.json
+.firebaserc
