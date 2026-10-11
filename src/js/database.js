@@ -329,11 +329,10 @@ class WeightDatabase {
             if (success) {
                 this.useFirebase = true;
                 console.log('Usando Firebase como banco de dados');
-                
-                // Aguardar autenticação antes de sincronizar
+                // Não sobe o localStorage para a conta: os dados locais podem ser de
+                // outra pessoa que usou este navegador sem login (ver CLAUDE.md).
                 if (firebaseManager.isAuthenticated()) {
                     this.currentUserId = firebaseManager.getCurrentUserId();
-                    await this.syncLocalToFirebase();
                 }
             } else {
                 console.log('Usando localStorage como banco de dados');
@@ -341,38 +340,6 @@ class WeightDatabase {
         } catch (error) {
             console.error('Erro ao inicializar Firebase:', error);
             console.log('Usando localStorage como banco de dados');
-        }
-    }
-
-    // Sincronizar dados locais com Firebase
-    async syncLocalToFirebase() {
-        if (!this.useFirebase || !this.currentUserId || Object.keys(this.registros).length === 0) return;
-
-        try {
-            console.log('Sincronizando dados locais com Firebase...');
-            
-            // Buscar registros existentes no Firebase
-            const firebaseRecords = await firebaseManager.getWeightRecords();
-            
-            if (firebaseRecords.length === 0) {
-                // Firebase está vazio, migrar dados locais
-                for (const mes in this.registros) {
-                    for (const semana in this.registros[mes]) {
-                        for (const registro of this.registros[mes][semana]) {
-                            await firebaseManager.addWeightRecord({
-                                mes: mes,
-                                semana: semana,
-                                peso: registro.peso,
-                                data: registro.data,
-                                timestamp: registro.timestamp
-                            });
-                        }
-                    }
-                }
-                console.log('Dados locais migrados para Firebase');
-            }
-        } catch (error) {
-            console.error('Erro ao sincronizar dados:', error);
         }
     }
 

@@ -1,0 +1,114 @@
+rules_version = '2';
+
+// Regras do Firestore do WeightChartS (projeto weightcharts-314d1).
+// Fonte de verdade: este arquivo. Publique com
+//   npx firebase-tools deploy --only firestore:rules
+// Ver REGRAS_FIRESTORE_SEGURAS.md para o que cada bloco garante.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function pesoValido(p) {
+      return p is number && p > 0 && p <= 500;
+    }
+
+    // Meta opcional: null remove a meta.
+    function metaValida(m) {
+      return m == null || pesoValido(m);
+    }
+
+    function stringCurta(s, max) {
+      return s is string && s.size() <= max;
+    }
+
+    // ----- Registros de peso (privados) -----
+    // Campos gravados por addWeightRecord / replaceAllWeightRecords / updateWeightRecord.
+    function camposRegistroValidos(d) {
+      return pesoValido(d.peso) &&
+             stringCurta(d.mes, 20) &&
+             stringCurta(d.semana, 2) &&
+             stringCurta(d.data, 20) &&
+             d.timestamp is number;
+    }
+
+    function edicaoRegistroValida(d, mudou) {
+      return mudou.hasOnly(['peso', 'data', 'mes', 'semana', 'timestamp']) &&
+             (!('peso' in mudou) || pesoValido(d.peso)) &&
+             (!('mes' in mudou) || stringCurta(d.mes, 20)) &&
+             (!('semana' in mudou) || stringCurta(d.semana, 2)) &&
+             (!('data' in mudou) || stringCurta(d.data, 20)) &&
+             (!('timestamp' in mudou) || d.timestamp is number);
+    }
+
+    match /weightRecords/{recordId} {
+      allow read, delete: if signedIn() && request.auth.uid == resource.data.userId;
+
+      allow create: if signedIn() &&
+                     request.resource.data.userId == request.auth.uid &&
+                     request.resource.data.keys().hasOnly(
+                       ['mes', 'semana', 'peso', 'data', 'userId', 'timestamp', 'createdAt']) &&
+                     camposRegistroValidos(request.resource.data);
+
+      // Valida só o que a edição muda: docs antigos podem ter campos extras
+      // (ex.: userEmail) ou tipos de outra época, e corrigir o peso não pode falhar por isso.
+      allow update: if signedIn() &&
+                     request.auth.uid == resource.data.userId &&
+                     edicaoRegistroValida(request.resource.data,
+                       request.resource.data.diff(resource.data).affectedKeys());
+    }
+
+    // ----- Preferências privadas: tema, meta, flag `public` -----
+    // Valida os campos que mudam: docs criados por versões antigas do app podem ter
+    // outros campos, e salvar o tema não pode falhar por causa deles.
+    function prefsValidas(d, mudou) {
+      return mudou.hasOnly(['theme', 'metaPeso', 'public', 'preferencesUpdatedAt']) &&
+             (!('theme' in mudou) || d.theme in ['light', 'dark']) &&
+             (!('metaPeso' in mudou) || metaValida(d.metaPeso)) &&
+             (!('public' in mudou) || d.public is bool);
+    }
+
+    match /users/{uid} {
+      allow read, delete: if isOwner(uid);
+      allow create: if isOwner(uid) &&
+                     prefsValidas(request.resource.data, request.resource.data.keys().toSet());
+      allow update: if isOwner(uid) &&
+                     prefsValidas(request.resource.data,
+                       request.resource.data.diff(resource.data).affectedKeys());
+    }
+
+    // ----- Perfil público: metadados para a lista "Explorar" -----
+    // Qualquer autenticado lê; só o dono escreve, e só neste formato.
+    match /publicProfiles/{uid} {
+      allow read: if signedIn();
+      allow delete: if isOwner(uid);
+      allow create, update: if isOwner(uid) &&
+                             request.resource.data.keys().hasOnly(
+                               ['uid', 'displayName', 'meta', 'count', 'updatedAt']) &&
+                             request.resource.data.uid == uid &&
+                             stringCurta(request.resource.data.displayName, 100) &&
+                             metaValida(request.resource.data.meta) &&
+                             request.resource.data.count is int &&
+                             request.resource.data.count >= 0 &&
+                             request.resource.data.updatedAt == request.time;
+    }
+
+    // ----- Perfil público: série {points:[{t,p}]} -----
+    // As regras não iteram listas: limitam o tamanho; o cliente saneia cada ponto.
+    match /publicSeries/{uid} {
+      allow read: if signedIn();
+      allow delete: if isOwner(uid);
+      allow create, update: if isOwner(uid) &&
+                             request.resource.data.keys().hasOnly(['points', 'updatedAt']) &&
+                             request.resource.data.points is list &&
+                             request.resource.data.points.size() <= 1000 &&
+                             request.resource.data.updatedAt == request.time;
+    }
+  }
+}

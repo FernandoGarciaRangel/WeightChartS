@@ -69,6 +69,8 @@ Os registros de peso são organizados como `{ [mes]: { [semana]: [ {peso, data, 
 - `mes` — chave em português minúsculo (`janeiro`…`dezembro`)
 - `semana` — string `"1"`–`"4"` (semana do mês, via `ceil(dia / 7)`)
 - Coleção Firestore: `weightRecords`; cada documento tem campo `userId` — as regras de segurança impõem isolamento por usuário
+- Regras do Firestore: **`firestore.rules`** é a fonte de verdade (publicar com `npx firebase-tools deploy --only firestore:rules`; projeto em `.firebaserc`). Validam o formato de cada coleção, então **um campo novo gravado pelo app precisa entrar nas regras antes** — senão a escrita é recusada. Ver `REGRAS_FIRESTORE_SEGURAS.md`.
+- **Sem migração do localStorage para a conta** — os registros locais (`registrosPeso_anonymous`) **não** sobem para quem faz login: podiam ser de outra pessoa que usou o mesmo navegador. Não reintroduza um `syncLocalToFirebase`.
 - Chave localStorage: `registrosPeso_{userId}` (ou `registrosPeso_anonymous`)
 
 `WeightDatabase.flattenLocalChronological()` é a fonte única de verdade para ordenar registros por timestamp tanto no gráfico quanto nas estatísticas. Os rótulos exibidos na UI são gerados por `recordPeriodLabel()` em `database.js`, que dá prioridade ao timestamp real sobre as chaves de mês/semana salvas.
