@@ -57,6 +57,14 @@ class WeightApp {
         this._lastPublicPayload = null;
         /** Sequência dos pedidos de detalhe no Explorar (descarta resposta de um clique antigo). */
         this._profileDetailReq = 0;
+        /**
+         * Carregamento da sessão em curso ({ uid, promise }). Ao reabrir o app com a sessão
+         * restaurada, `bootstrapAuthUI()` e o evento `userAuthChanged` pedem ambos o
+         * carregamento; sem isto ele corria duas vezes em paralelo e a lista saía duplicada.
+         */
+        this._sessionLoad = null;
+        /** Sequência dos renders da lista: só o mais recente escreve no DOM. */
+        this._listaSeq = 0;
         this.init();
     }
 
@@ -214,10 +222,7 @@ class WeightApp {
         this.updateAuthUI();
 
         if (user) {
-            await this.loadThemeForUser();
-            await this.loadMetaForUser();
-            await this.loadProfileForUser();
-            this.loadInitialData();
+            await this.loadUserSession(user);
             this.hideLandingScreen();
             try {
                 localStorage.setItem(SKIP_LANDING_KEY, '1');
@@ -230,6 +235,29 @@ class WeightApp {
         } else {
             this.showLandingScreen();
         }
+    }
+
+    /**
+     * Carrega tema → meta → perfil → dados do usuário, uma vez por sessão.
+     *
+     * Sequenciado para o snapshot público ver a meta já carregada e evitar corrida com
+     * isProfilePublic ao sincronizar. Espera o init do Firebase: no boot o evento
+     * `userAuthChanged` chega ANTES de `isInitialized`, e com `isAvailable()` falso o tema e
+     * a meta vinham só do localStorage e o cartão do perfil público aparecia escondido.
+     * Chamadas repetidas para o mesmo uid partilham o carregamento em curso.
+     */
+    loadUserSession(user) {
+        const uid = user ? user.uid : null;
+        if (this._sessionLoad && this._sessionLoad.uid === uid) return this._sessionLoad.promise;
+        const promise = (async () => {
+            await firebaseManager.initialize();
+            await this.loadThemeForUser();
+            await this.loadMetaForUser();
+            await this.loadProfileForUser();
+            this.loadInitialData();
+        })();
+        this._sessionLoad = { uid, promise };
+        return promise;
     }
 
     shouldSkipLanding() {
@@ -288,16 +316,10 @@ class WeightApp {
                     /* ignore */
                 }
                 this.hideAuthScreen();
-                // Sequenciado (tema → meta → perfil) para o snapshot público ver a meta já
-                // carregada e evitar corrida com isProfilePublic ao sincronizar.
-                void (async () => {
-                    await this.loadThemeForUser();
-                    await this.loadMetaForUser();
-                    await this.loadProfileForUser();
-                    this.loadInitialData();
-                })();
+                void this.loadUserSession(user);
             } else {
                 console.log('Usuário desautenticado');
+                this._sessionLoad = null;
                 this.applyTheme('dark');
                 this.metaPeso = null;
                 this.applyMetaToUI();
@@ -911,11 +933,18 @@ class WeightApp {
         const btnVerTodos = document.getElementById('btnVerTodos');
         if (!ul) return;
 
-        ul.innerHTML = '';
-        if (ulTodos) ulTodos.innerHTML = '';
-        if (btnVerTodos) btnVerTodos.classList.add('hidden');
+        // Limpa e preenche só depois da leitura, e só o render mais recente: duas chamadas
+        // em paralelo (boot, escrita durante o boot) limpavam ambas antes de qualquer uma
+        // anexar, e a lista saía com cada registro em dobro.
+        const seq = ++this._listaSeq;
+        const reset = () => {
+            ul.innerHTML = '';
+            if (ulTodos) ulTodos.innerHTML = '';
+            if (btnVerTodos) btnVerTodos.classList.add('hidden');
+        };
 
         if (!this.isAuthenticated) {
+            reset();
             if (empty) {
                 empty.classList.remove('hidden');
                 empty.textContent = 'Faça login para ver os registros.';
@@ -926,6 +955,8 @@ class WeightApp {
 
         try {
             const rows = await weightDB.getRecordsForEditList(500);
+            if (seq !== this._listaSeq) return;
+            reset();
             if (rows.length === 0) {
                 if (empty) {
                     empty.classList.remove('hidden');
@@ -948,7 +979,9 @@ class WeightApp {
                 btnVerTodos.classList.remove('hidden');
             }
         } catch (err) {
+            if (seq !== this._listaSeq) return;
             console.error(err);
+            reset();
             if (empty) {
                 empty.classList.remove('hidden');
                 empty.textContent = 'Não foi possível carregar a lista.';
