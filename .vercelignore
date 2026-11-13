@@ -15,3 +15,6 @@ npm-debug.log*
 # Arquivos temporários
 .DS_Store
 Thumbs.db
+
+# Testes locais de regressão de domínio.
+tests/

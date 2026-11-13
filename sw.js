@@ -7,7 +7,7 @@
 //
 // Ao mudar arquivos do app, incremente CACHE_VERSION para limpar o cache antigo.
 
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const CACHE = `weightcharts-${CACHE_VERSION}`;
 
 const APP_SHELL = [
