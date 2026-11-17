@@ -20,3 +20,6 @@ Thumbs.db
 firestore.rules
 firebase.json
 .firebaserc
+
+# Testes locais de regressão de domínio.
+tests/
