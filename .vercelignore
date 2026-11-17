@@ -16,5 +16,10 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 
+# Firebase CLI (regras do Firestore — publicadas à parte, não fazem parte do site)
+firestore.rules
+firebase.json
+.firebaserc
+
 # Testes locais de regressão de domínio.
 tests/

@@ -97,21 +97,16 @@ class FirebaseManager {
                 password
             );
             
-            // Atualizar nome do usuário se fornecido
+            // Atualizar nome do usuário se fornecido. O updateProfile já atualiza o
+            // displayName no próprio objeto User; não copie com spread, que perde os
+            // métodos (getIdToken, reload…) e quebra o updateProfile() posterior.
             if (displayName) {
                 await window.firebaseSDK.updateProfile(userCredential.user, {
                     displayName: displayName
                 });
-                
-                // Atualizar o usuário atual com o novo displayName
-                this.currentUser = {
-                    ...userCredential.user,
-                    displayName: displayName
-                };
-            } else {
-                this.currentUser = userCredential.user;
             }
-            
+            this.currentUser = userCredential.user;
+
             console.log('Usuário registrado:', this.currentUser.email, 'Nome:', this.currentUser.displayName);
             return this.currentUser;
             
@@ -642,7 +637,8 @@ class FirebaseManager {
         await Promise.all([
             window.firebaseSDK.setDoc(window.firebaseSDK.doc(this.db, 'publicProfiles', uid), {
                 uid,
-                displayName: String(displayName || 'Usuário'),
+                // As regras (firestore.rules) recusam nome com mais de 100 caracteres.
+                displayName: String(displayName || 'Usuário').slice(0, 100),
                 meta: metaValue,
                 count: total,
                 updatedAt: now,

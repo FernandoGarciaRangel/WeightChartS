@@ -1,185 +1,40 @@
-# 🔐 REGRAS DE SEGURANÇA DO FIRESTORE
+# Regras de segurança do Firestore
 
-## 📋 **REGRAS DE SEGURANÇA IMPLEMENTADAS**
+As regras ficam em [`firestore.rules`](firestore.rules), que é a **fonte de verdade**. Não
+edite as regras no Firebase Console: a próxima publicação a partir do arquivo desfaz a
+edição.
 
-### **✅ REGRAS ATUAIS (SEGURAS):**
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    // Valida o peso no servidor (não confiar só no cliente)
-    function pesoValido(p) {
-      return p is number && p > 0 && p <= 500;
-    }
+## Como publicar
 
-    // Coleção de registros de peso
-    match /weightRecords/{document} {
-      // Leitura: autenticado E dono do documento
-      allow read: if request.auth != null &&
-                   request.auth.uid == resource.data.userId;
-
-      // Criação: autenticado, userId = UID e peso válido
-      allow create: if request.auth != null &&
-                     request.auth.uid == request.resource.data.userId &&
-                     pesoValido(request.resource.data.peso);
-
-      // Atualização: dono, sem trocar o userId e peso válido
-      allow update: if request.auth != null &&
-                     request.auth.uid == resource.data.userId &&
-                     request.resource.data.userId == resource.data.userId &&
-                     pesoValido(request.resource.data.peso);
-
-      // Exclusão: autenticado E dono do documento
-      allow delete: if request.auth != null &&
-                     request.auth.uid == resource.data.userId;
-    }
-
-    // Preferências privadas do utilizador (tema, meta, flag `public`).
-    // Só o próprio dono lê/escreve — nada aqui fica exposto a terceiros.
-    match /users/{userId} {
-      allow read, write: if request.auth != null &&
-                          request.auth.uid == userId;
-    }
-
-    // Perfil público — metadados leves para a lista "Explorar" (nome, meta, count).
-    // Qualquer autenticado lê; só o dono escreve o próprio.
-    match /publicProfiles/{uid} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == uid;
-    }
-
-    // Série de evolução pública {points:[{t,p}]} — carregada só ao abrir o detalhe.
-    match /publicSeries/{uid} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == uid;
-    }
-  }
-}
-```
-
-> **Nota:** o perfil público agora vive em `publicProfiles/{uid}` (metadados) e
-> `publicSeries/{uid}` (série), **separado** do doc privado `users/{uid}`. Assim, tornar-se
-> público expõe apenas nome, meta e a evolução de peso — o tema e demais preferências
-> continuam privados, e os `weightRecords` continuam totalmente privados (só o dono lê).
-> A seção **Explorar** lista `publicProfiles` (docs pequenos) e busca a série completa de
-> `publicSeries/{uid}` só quando um perfil é aberto.
->
-> ⚠️ **Estas regras precisam ser (re)publicadas manualmente** no Firebase Console. Sem
-> as regras de `publicProfiles`/`publicSeries`, a lista "Explorar" mostra erro (leitura
-> negada) e o toggle **falha em voz alta** em vez de fingir sucesso: ativar mostra "não foi
-> possível tornar o perfil público" e desativar mostra "seu perfil continua público" — esse é
-> o sintoma de regras por publicar. Perfis que já eram públicos no formato antigo precisam
-> ser reativados no toggle.
-
-## 🚀 **COMO APLICAR AS REGRAS:**
-
-### **1. Acesse o Firebase Console:**
-- **URL**: [console.firebase.google.com](https://console.firebase.google.com)
-- **Projeto**: `weightcharts-314d1`
-
-### **2. Vá para Firestore Database:**
-- **Menu lateral**: Firestore Database
-- **Aba**: Rules
-
-### **3. Substitua as regras atuais:**
-- **Cole as regras acima** no editor
-- **Clique**: "Publish"
-
-## 🔒 **O QUE AS REGRAS GARANTEM:**
-
-### **✅ SEGURANÇA:**
-- **Usuários autenticados**: Apenas usuários logados podem acessar
-- **Isolamento de dados**: Cada usuário vê apenas seus próprios dados
-- **Validação de propriedade**: Usuário só pode modificar seus dados
-- **Prevenção de acesso não autorizado**: Impossível acessar dados de outros usuários
-
-### **✅ FUNCIONALIDADES:**
-- **Login com email/senha**: Conta permanente e segura
-- **Persistência**: Dados salvos por usuário
-- **Sincronização**: Dados sincronizados entre dispositivos
-- **Privacidade**: Dados isolados por usuário
-
-## 🧪 **TESTE DAS REGRAS:**
-
-### **1. Teste Local:**
 ```bash
-npm run dev
-# Verificar se autenticação funciona
-# Verificar se dados são isolados
-# Testar login, registro e logout
+npx firebase-tools login                               # uma vez por máquina
+npx firebase-tools deploy --only firestore:rules       # projeto em .firebaserc
 ```
 
-### **2. Teste de Produção:**
-- **Deploy**: `git push origin main`
-- **Verificar**: `https://weight-charts.vercel.app/`
-- **Testar**: Criar conta, fazer login, adicionar registros
+Para só compilar e conferir, sem publicar, acrescente `--dry-run`.
 
-## 📱 **FUNCIONALIDADES IMPLEMENTADAS:**
+## O que as regras garantem
 
-### **✅ AUTENTICAÇÃO COMPLETA:**
-- **Registro de conta** com email/senha
-- **Login seguro** com validação
-- **Logout** com limpeza de dados
-- **Redefinição de senha** por email
-- **Perfil do usuário** com nome personalizado
+| Coleção | Leitura | Escrita |
+|---|---|---|
+| `weightRecords/{id}` | só o dono (`userId`) | criar: `userId` = quem grava, só os campos do app, peso entre 0 e 500 kg. Editar: só `peso`/`data`/`mes`/`semana`/`timestamp`, sem trocar o dono |
+| `users/{uid}` | só o dono | só `theme` (`light`/`dark`), `metaPeso` (null ou 0–500), `public` (bool) e `preferencesUpdatedAt` |
+| `publicProfiles/{uid}` | qualquer autenticado | só o dono, no formato `{uid, displayName ≤ 100, meta, count ≥ 0, updatedAt}` |
+| `publicSeries/{uid}` | qualquer autenticado | só o dono, `{points: lista ≤ 1000, updatedAt}` |
 
-### **✅ ISOLAMENTO DE DADOS:**
-- **userId em cada registro**
-- **userEmail em cada registro**
-- **Filtros por usuário** no Firestore
-- **localStorage separado** por usuário
-- **Sincronização automática**
+Duas decisões que não são óbvias:
 
-### **✅ INTERFACE INTELIGENTE:**
-- **Tela de login/registro** modal
-- **Status de conexão** visível
-- **Informações do usuário** personalizadas
-- **Validação de autenticação** antes de operações
-- **Feedback visual** de estado
-- **Navegação entre formulários**
+- **Editar valida só os campos que mudam** (`diff().affectedKeys()`), não o documento
+  inteiro. Documentos gravados por versões antigas do app têm campos extras (`userEmail`,
+  o perfil público antigo dentro de `users/{uid}`); validar o doc inteiro faria corrigir
+  um peso ou salvar o tema falhar para quem tem esses documentos.
+- **As regras não iteram listas**, então os pontos de `publicSeries` não são validados um a
+  um, só o tamanho da lista. Quem saneia cada ponto é o cliente
+  (`_writePublicSnapshot`, invariante 5 do CLAUDE.md).
 
-## 🎯 **PRÓXIMOS PASSOS:**
+## Sintoma de regras por publicar ou desatualizadas
 
-### **1. Aplicar as regras** no Firebase Console
-### **2. Testar localmente** com `npm run dev`
-### **3. Fazer deploy** das alterações
-### **4. Testar em produção**
-
-## 🔍 **VERIFICAÇÕES IMPORTANTES:**
-
-### **✅ ANTES DO DEPLOY:**
-- [ ] Regras aplicadas no Firebase
-- [ ] Teste local funcionando
-- [ ] Autenticação completa funcionando
-- [ ] Dados isolados por usuário
-- [ ] Login/registro funcionando
-
-### **✅ APÓS O DEPLOY:**
-- [ ] Aplicação carrega sem erros
-- [ ] Tela de login aparece para usuários não autenticados
-- [ ] Registro de conta funciona
-- [ ] Login funciona
-- [ ] Dados são isolados entre usuários
-- [ ] Logout funciona corretamente
-
-## 🌟 **VANTAGENS DA AUTENTICAÇÃO COMPLETA:**
-
-### **✅ SEGURANÇA:**
-- **Conta permanente** - não perde dados
-- **Sincronização** entre dispositivos
-- **Recuperação** de senha
-- **Identificação** real dos membros
-
-### **✅ USABILIDADE:**
-- **Login rápido** com email/senha
-- **Perfil personalizado** com nome
-- **Dados persistentes** entre sessões
-- **Múltiplos usuários** na família
-
-### **✅ PROFISSIONALISMO:**
-- **Interface moderna** e intuitiva
-- **Validações** robustas
-- **Mensagens de erro** em português
-- **UX otimizada** para mobile
-
-**Agora sua aplicação tem autenticação profissional e segura! 🔐🚀**
+O app falha **em voz alta** em vez de fingir sucesso: a lista "Explorar" mostra erro, ativar
+o perfil público mostra "não foi possível tornar o perfil público" e desativar mostra "seu
+perfil continua público". Perfis que eram públicos no formato antigo precisam ser
+reativados no toggle.
