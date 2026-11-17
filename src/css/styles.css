@@ -330,6 +330,34 @@ input[type="number"]::-webkit-inner-spin-button {
     border-color: var(--border-hover);
 }
 
+:root .btn-google {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+}
+
+:root .btn-google:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+/* Separador "ou" entre o login por email e o do Google. */
+:root .auth-divider {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--text-dim);
+}
+
+:root .auth-divider::before,
+:root .auth-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background-color: var(--border);
+}
+
 :root .btn-ghost {
     background: none;
     border: none;

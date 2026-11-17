@@ -558,6 +558,11 @@ class WeightApp {
             btnLogin.addEventListener('click', () => this.handleLogin());
         }
 
+        // Login com Google (um botão em "Entrar" e outro em "Criar conta")
+        document.querySelectorAll('[data-google-login]').forEach((btn) => {
+            btn.addEventListener('click', () => void this.handleGoogleLogin());
+        });
+
         // Botão de registro
         const btnRegister = document.getElementById('btnRegister');
         if (btnRegister) {
@@ -680,6 +685,30 @@ class WeightApp {
             this.showSuccessMessage('Login realizado com sucesso!');
         } catch (error) {
             this.showErrorMessage(error.message);
+        }
+    }
+
+    /**
+     * Login com Google. O resto do fluxo (fechar o modal, carregar dados) vem do
+     * `userAuthChanged`, como no login por email. Popup fechado não é erro.
+     */
+    async handleGoogleLogin() {
+        if (this._googleLoginBusy) return;
+        this._googleLoginBusy = true;
+        const buttons = document.querySelectorAll('[data-google-login]');
+        buttons.forEach((b) => {
+            b.disabled = true;
+        });
+        try {
+            const user = await firebaseManager.signInWithGoogle();
+            if (user) this.showSuccessMessage('Login realizado com sucesso!');
+        } catch (error) {
+            this.showErrorMessage(error.message);
+        } finally {
+            this._googleLoginBusy = false;
+            buttons.forEach((b) => {
+                b.disabled = false;
+            });
         }
     }
 

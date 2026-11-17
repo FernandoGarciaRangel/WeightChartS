@@ -7,7 +7,7 @@
 //
 // Ao mudar arquivos do app, incremente CACHE_VERSION para limpar o cache antigo.
 
-const CACHE_VERSION = 'v4';
+const CACHE_VERSION = 'v5';
 const CACHE = `weightcharts-${CACHE_VERSION}`;
 
 const APP_SHELL = [
@@ -33,6 +33,10 @@ const NETWORK_ONLY = [
     'identitytoolkit.googleapis.com',
     'securetoken.googleapis.com',
     'www.googleapis.com',
+    // Login com Google: scripts e handler do popup — não cachear (mudam sem versão na URL).
+    'apis.google.com',
+    'accounts.google.com',
+    'firebaseapp.com',
 ];
 
 self.addEventListener('install', (event) => {

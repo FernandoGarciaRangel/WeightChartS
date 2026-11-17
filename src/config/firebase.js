@@ -137,6 +137,37 @@ class FirebaseManager {
         }
     }
 
+    /**
+     * Login com Google via popup. Popup (e não redirect): o authDomain
+     * (firebaseapp.com) é outro domínio que o do app, e o redirect quebra com o
+     * particionamento de armazenamento do Safari/Chrome.
+     * Devolve `null` se o utilizador fechou o popup — não é erro a mostrar.
+     */
+    async signInWithGoogle() {
+        try {
+            await this.ensureInitialized();
+
+            const provider = new window.firebaseSDK.GoogleAuthProvider();
+            provider.setCustomParameters({ prompt: 'select_account' });
+            const userCredential = await window.firebaseSDK.signInWithPopup(this.auth, provider);
+
+            this.currentUser = userCredential.user;
+            console.log('Login com Google realizado:', this.currentUser.email);
+            return this.currentUser;
+        } catch (error) {
+            if (
+                error &&
+                (error.code === 'auth/popup-closed-by-user' ||
+                    error.code === 'auth/cancelled-popup-request' ||
+                    error.code === 'auth/user-cancelled')
+            ) {
+                return null;
+            }
+            console.error('Erro no login com Google:', error);
+            throw this.translateFirebaseError(error);
+        }
+    }
+
     // Fazer logout
     async signOut() {
         try {
@@ -201,7 +232,13 @@ class FirebaseManager {
             'auth/weak-password': 'A senha deve ter pelo menos 6 caracteres',
             'auth/invalid-email': 'Email inválido',
             'auth/too-many-requests': 'Muitas tentativas. Tente novamente em alguns minutos',
-            'auth/network-request-failed': 'Erro de conexão. Verifique sua internet'
+            'auth/network-request-failed': 'Erro de conexão. Verifique sua internet',
+            'auth/popup-blocked':
+                'O navegador bloqueou a janela do Google. Permita pop-ups para este site e tente de novo',
+            'auth/account-exists-with-different-credential':
+                'Já existe uma conta com este email. Entre com email e senha',
+            'auth/unauthorized-domain': 'Login com Google não está liberado para este endereço',
+            'auth/operation-not-allowed': 'Login com Google não está ativado'
         };
         
         return new Error(errorMessages[error.code] || error.message);

@@ -62,6 +62,10 @@ O `index.html` carrega o Firebase como módulos ES a partir do CDN do gstatic nu
 4. `WeightApp.bootstrapAuthUI()` escuta e navega entre: landing → modal de auth → app principal.
 5. `WeightDatabase` também escuta `userAuthChanged` para recarregar ou limpar dados.
 
+### Login com Google
+
+`FirebaseManager.signInWithGoogle()` usa **popup** (`signInWithPopup`), não redirect: o `authDomain` (`*.firebaseapp.com`) é outro domínio que o do app, e o redirect quebra com o particionamento de armazenamento do Safari/Chrome. Popup fechado/cancelado devolve `null` (não mostra erro). Os botões têm `data-google-login` (um em "Entrar", outro em "Criar conta"); o resto do fluxo vem do `userAuthChanged`, como no login por email. No console: provedor Google ativado e o domínio do app em **Authorized domains** — sem isso o erro é `auth/operation-not-allowed` / `auth/unauthorized-domain`. Com "uma conta por email" (padrão), entrar pelo Google num email que já tinha senha mantém o `uid`, mas o Firebase pode desligar a senha.
+
 ### Modelo de dados
 
 Os registros de peso são organizados como `{ [mes]: { [semana]: [ {peso, data, timestamp, localId?} ] } }`.
