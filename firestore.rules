@@ -39,7 +39,9 @@ service cloud.firestore {
     }
 
     function edicaoRegistroValida(d, mudou) {
-      return mudou.hasOnly(['peso', 'data', 'mes', 'semana', 'timestamp']) &&
+      // updatedAt: updateWeightRecord grava a cada edição (ISO string).
+      return mudou.hasOnly(['peso', 'data', 'mes', 'semana', 'timestamp', 'updatedAt']) &&
+             (!('updatedAt' in mudou) || stringCurta(d.updatedAt, 40)) &&
              (!('peso' in mudou) || pesoValido(d.peso)) &&
              (!('mes' in mudou) || stringCurta(d.mes, 20)) &&
              (!('semana' in mudou) || stringCurta(d.semana, 2)) &&
